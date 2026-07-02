@@ -1,0 +1,14 @@
+{
+  "name": "bethesda-ai-translator",
+  "version": "1.0.0",
+  "description": "AI-powered translation tool for Bethesda RPGs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "knowledge-cutoff-awareness": "github:imkohenauser/knowledge-cutoff-awareness"
+  }
+}

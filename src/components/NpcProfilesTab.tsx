@@ -1,0 +1,468 @@
+import React, { useState, useMemo, useRef } from 'react';
+import { TranslationString, NpcProfile } from '../types';
+
+interface NpcProfilesTabProps {
+  items: TranslationString[];
+  profiles: NpcProfile[];
+  onSaveProfile: (profile: NpcProfile) => void;
+  onDeleteProfile: (name: string) => void;
+  onImportProfiles: (profiles: NpcProfile[]) => void;
+  uiLanguage: string;
+  onAutoDetectNpcProfiles: () => void;
+}
+
+export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
+  items,
+  profiles,
+  onSaveProfile,
+  onDeleteProfile,
+  onImportProfiles,
+  uiLanguage,
+  onAutoDetectNpcProfiles,
+}) => {
+  const [selectedNpc, setSelectedNpc] = useState<string>('');
+  const [sex, setSex] = useState('Unknown');
+  const [firstPerson, setFirstPerson] = useState('');
+  const [secondPerson, setSecondPerson] = useState('');
+  const [toneStyle, setToneStyle] = useState('');
+  const [search, setSearch] = useState('');
+
+  // States for adding a new profile
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [newNpcNameInput, setNewNpcNameInput] = useState('');
+  const [selectedNpcFromDropdown, setSelectedNpcFromDropdown] = useState('');
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isJa = uiLanguage === 'ja';
+
+  // 1. Extract unconfigured valid NPCs from XML items
+  const unconfiguredDetectedNpcs = useMemo(() => {
+    const npcs = new Set<string>();
+    const npcHasDialogue = new Set<string>();
+    const configuredNames = new Set(profiles.map(p => p.name.toLowerCase()));
+
+    items.forEach((item) => {
+      if (item.npc) {
+        let cleanName = item.npc.trim();
+        if (cleanName.startsWith('[')) {
+          const endIdx = cleanName.indexOf(']');
+          if (endIdx !== -1) {
+            cleanName = cleanName.substring(1, endIdx).trim();
+          }
+        }
+
+        // Skip system speaker tags (e.g. NPC_:01006872) or hex FormIDs, matching original app spec
+        if (cleanName.startsWith('NPC_') || /^[0-9A-Fa-f]+$/.test(cleanName)) {
+          return;
+        }
+
+        if (cleanName) {
+          npcs.add(cleanName);
+          if (item.source && item.source.trim().length > 0) {
+            npcHasDialogue.add(cleanName);
+          }
+        }
+      }
+    });
+
+    return Array.from(npcs)
+      .filter(name => npcHasDialogue.has(name) && !configuredNames.has(name.toLowerCase()))
+      .sort();
+  }, [items, profiles]);
+
+  // 2. Filter registered profiles for left-side list
+  const filteredProfiles = useMemo(() => {
+    return profiles
+      .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [profiles, search]);
+
+  const handleSelectProfile = (name: string) => {
+    setSelectedNpc(name);
+    const existing = profiles.find((p) => p.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      setSex(existing.sex || 'Unknown');
+      setFirstPerson(existing.firstPerson || '');
+      setSecondPerson(existing.secondPerson || '');
+      setToneStyle(existing.toneStyle || '');
+    }
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedNpc) return;
+
+    onSaveProfile({
+      name: selectedNpc,
+      sex: sex,
+      firstPerson: firstPerson.trim(),
+      secondPerson: secondPerson.trim(),
+      toneStyle: toneStyle.trim(),
+    });
+  };
+
+  // Add new profile frame
+  const handleAddNewProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalName = (newNpcNameInput.trim() || selectedNpcFromDropdown).trim();
+    if (!finalName) return;
+
+    // Check if already exists
+    const exists = profiles.some(p => p.name.toLowerCase() === finalName.toLowerCase());
+    if (exists) {
+      alert(isJa ? `NPC "${finalName}" は既に登録されています。` : `NPC "${finalName}" is already registered.`);
+      handleSelectProfile(finalName);
+      setIsAddingNew(false);
+      setNewNpcNameInput('');
+      setSelectedNpcFromDropdown('');
+      return;
+    }
+
+    // Initialize state
+    setSelectedNpc(finalName);
+    setSex('Unknown');
+    setFirstPerson('');
+    setSecondPerson('');
+    setToneStyle('');
+
+    setIsAddingNew(false);
+    setNewNpcNameInput('');
+    setSelectedNpcFromDropdown('');
+  };
+
+  // Export JSON
+  const handleExport = () => {
+    try {
+      const dataStr = JSON.stringify(profiles, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+      const exportFileDefaultName = 'npc_profiles.json';
+
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+    } catch (err) {
+      alert(`Export failed: ${(err as Error).message}`);
+    }
+  };
+
+  // Import JSON
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const imported = JSON.parse(content);
+
+        if (!Array.isArray(imported)) {
+          throw new Error(isJa ? 'データが正しい配列形式ではありません。' : 'Invalid data format. Expected an array.');
+        }
+
+        // Validate format of each item
+        const validProfiles: NpcProfile[] = [];
+        imported.forEach((item, index) => {
+          if (item && typeof item === 'object' && typeof item.name === 'string') {
+            validProfiles.push({
+              name: item.name,
+              sex: typeof item.sex === 'string' ? item.sex : 'Unknown',
+              firstPerson: typeof item.firstPerson === 'string' ? item.firstPerson : '',
+              secondPerson: typeof item.secondPerson === 'string' ? item.secondPerson : '',
+              toneStyle: typeof item.toneStyle === 'string' ? item.toneStyle : '',
+            });
+          } else {
+            console.warn(`Skipped invalid profile at index ${index}`);
+          }
+        });
+
+        if (validProfiles.length > 0) {
+          onImportProfiles(validProfiles);
+        } else {
+          alert(isJa ? '読み込める有効な設定データが見つかりませんでした。' : 'No valid NPC profile profiles found.');
+        }
+      } catch (err) {
+        alert(isJa ? `インポート失敗: ${(err as Error).message}` : `Import failed: ${(err as Error).message}`);
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0 bg-neutral-950 p-6 space-y-6 overflow-y-auto select-none">
+      {/* Header with Import/Export UI */}
+      <div className="flex justify-between items-start flex-wrap gap-4">
+        <div>
+          <h2 className="text-lg font-bold text-neutral-100 font-serif">
+            {isJa ? 'NPC口調設定 (人物プロファイル) 管理' : 'NPC Profiles & Tone Settings'}
+          </h2>
+          <p className="text-xs text-neutral-500 mt-1">
+            {isJa
+              ? '設定されたNPCの口調データを管理します。XMLの自動翻訳や、新規NPCの分析にこれらの設定がプロンプトとして適用されます。'
+              : 'Manage configured NPC tone profiles. These profiles will be dynamically injected into LLM translation prompts.'}
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {/* JSON Export */}
+          <button
+            onClick={handleExport}
+            disabled={profiles.length === 0}
+            className="px-3 py-2 bg-neutral-800 hover:bg-neutral-700 disabled:opacity-40 disabled:hover:bg-neutral-800 text-neutral-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md active:scale-95"
+            title={isJa ? '設定をJSONファイルとして保存' : 'Export settings to JSON'}
+          >
+            📤 {isJa ? 'JSONのエクスポート' : 'Export JSON'}
+          </button>
+
+          {/* JSON Import */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="px-3 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md active:scale-95"
+            title={isJa ? 'JSONファイルから設定を読み込み' : 'Import settings from JSON'}
+          >
+            📥 {isJa ? 'JSONのインポート' : 'Import JSON'}
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImport}
+            accept=".json"
+            className="hidden"
+          />
+
+          {/* AI Analyse trigger */}
+          <button
+            onClick={onAutoDetectNpcProfiles}
+            disabled={items.length === 0}
+            className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:hover:bg-amber-500 text-neutral-950 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-amber-900/10 active:scale-95"
+          >
+            ✨ {isJa ? 'AIでNPCを自動分析' : 'Analyze NPCs with AI'}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+        {/* Left Side: Profiles List */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 flex flex-col max-h-[60vh] min-h-[45vh]">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-sm text-neutral-300 font-serif">
+              {isJa ? `登録済みNPC口調 (${profiles.length})` : `Saved NPC Profiles (${profiles.length})`}
+            </h3>
+            
+            <button
+              onClick={() => setIsAddingNew(!isAddingNew)}
+              className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 px-2 py-1 rounded-lg font-bold transition"
+            >
+              {isAddingNew ? (isJa ? '閉じる' : 'Cancel') : `➕ ${isJa ? '新規追加' : 'Add New'}`}
+            </button>
+          </div>
+
+          {/* Inline Add New Profile form */}
+          {isAddingNew && (
+            <form onSubmit={handleAddNewProfile} className="bg-neutral-950 border border-neutral-800/80 rounded-xl p-3 mb-3 space-y-2.5 animate-fadeIn">
+              <h4 className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                {isJa ? 'NPCを口調管理に追加' : 'Add NPC to Manager'}
+              </h4>
+
+              <div>
+                <label className="block text-[9px] text-neutral-500 mb-0.5">
+                  {isJa ? 'XML内の検出NPCから選ぶ' : 'Select from detected XML NPCs'}
+                </label>
+                {unconfiguredDetectedNpcs.length === 0 ? (
+                  <div className="text-[10px] text-neutral-600 italic">
+                    {isJa ? '(未設定の検出NPCはありません)' : '(No unconfigured NPCs detected)'}
+                  </div>
+                ) : (
+                  <select
+                    value={selectedNpcFromDropdown}
+                    onChange={(e) => {
+                      setSelectedNpcFromDropdown(e.target.value);
+                      setNewNpcNameInput('');
+                    }}
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2 py-1.5 text-xs text-neutral-300 focus:outline-none focus:border-amber-500/50 cursor-pointer"
+                  >
+                    <option value="">{isJa ? '-- NPCを選択 --' : '-- Select NPC --'}</option>
+                    {unconfiguredDetectedNpcs.map(npc => (
+                      <option key={npc} value={npc}>{npc}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-[9px] text-neutral-500 mb-0.5">
+                  {isJa ? 'または手動でNPC名を入力' : 'Or input NPC name manually'}
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. MyCustomNPC"
+                  value={newNpcNameInput}
+                  onChange={(e) => {
+                    setNewNpcNameInput(e.target.value);
+                    setSelectedNpcFromDropdown('');
+                  }}
+                  className="w-full bg-neutral-900 border border-neutral-800 text-xs text-neutral-300 px-2 py-1 rounded-lg focus:outline-none focus:border-amber-500/50"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={!newNpcNameInput.trim() && !selectedNpcFromDropdown}
+                className="w-full py-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:hover:bg-amber-500 text-neutral-950 font-bold rounded-lg text-[10px] transition"
+              >
+                {isJa ? '設定フォームを開く' : 'Add and Open Editor'}
+              </button>
+            </form>
+          )}
+
+          <input
+            type="text"
+            placeholder={isJa ? 'NPC名で検索...' : 'Search NPCs...'}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-neutral-950 border border-neutral-800 text-xs text-neutral-300 px-3 py-2 rounded-xl mb-3 focus:outline-none focus:border-amber-500/50"
+          />
+
+          <div className="flex-1 overflow-y-auto divide-y divide-neutral-800/60 pr-1">
+            {filteredProfiles.length === 0 ? (
+              <div className="text-center py-12 text-neutral-600 text-xs italic">
+                {isJa ? '口調設定が登録されていません。' : 'No NPC profiles registered.'}
+              </div>
+            ) : (
+              filteredProfiles.map((p) => {
+                return (
+                  <button
+                    key={p.name}
+                    onClick={() => handleSelectProfile(p.name)}
+                    className={`w-full text-left py-2.5 px-2 rounded-lg text-xs font-medium transition flex items-center justify-between ${
+                      selectedNpc === p.name
+                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/40'
+                    }`}
+                  >
+                    <div className="flex flex-col min-w-0 mr-2">
+                      <span className="truncate font-bold">🗣️ {p.name}</span>
+                      <span className="text-[10px] text-neutral-500 truncate mt-0.5">
+                        {p.firstPerson ? `${isJa ? '一人称' : 'Pronoun'}: ${p.firstPerson}` : ''}
+                        {p.toneStyle ? ` | ${p.toneStyle}` : ''}
+                      </span>
+                    </div>
+                    {p.sex && (
+                      <span className="text-[9px] bg-neutral-800 text-neutral-400 px-1.5 py-0.5 rounded border border-neutral-700 shrink-0 uppercase font-mono">
+                        {p.sex}
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Right Side: Profile Editor Form */}
+        <div className="md:col-span-2 bg-neutral-900 border border-neutral-800 rounded-2xl p-5">
+          {!selectedNpc ? (
+            <div className="text-center py-24 text-neutral-500 text-xs font-serif italic">
+              {isJa ? '← 左の一覧から口調を編集したいNPCを選択するか、新規追加してください。' : '← Select an NPC profile from the list to edit, or add a new one.'}
+            </div>
+          ) : (
+            <form onSubmit={handleSave} className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-sm text-amber-400 font-serif">
+                  {isJa ? `🗣️ ${selectedNpc} の設定編集` : `Edit 🗣️ ${selectedNpc} Profile`}
+                </h3>
+                {profiles.some((p) => p.name.toLowerCase() === selectedNpc.toLowerCase()) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDeleteProfile(selectedNpc);
+                      setSelectedNpc('');
+                      setSex('Unknown');
+                      setFirstPerson('');
+                      setSecondPerson('');
+                      setToneStyle('');
+                    }}
+                    className="text-[10px] text-red-400 font-bold hover:underline"
+                  >
+                    {isJa ? '設定を削除' : 'Delete settings'}
+                  </button>
+                )}
+              </div>
+
+              {/* Sex & First Person & Second Person inputs */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">
+                    {isJa ? '性別 / 属性' : 'Gender / Role'}
+                  </label>
+                  <select
+                    value={sex}
+                    onChange={(e) => setSex(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-200 focus:outline-none focus:border-amber-500/50 cursor-pointer"
+                  >
+                    <option value="Unknown">{isJa ? '不明 / 不定' : 'Unknown'}</option>
+                    <option value="Male">{isJa ? '男性 (Male)' : 'Male'}</option>
+                    <option value="Female">{isJa ? '女性 (Female)' : 'Female'}</option>
+                    <option value="Player">{isJa ? 'プレイヤー (Player)' : 'Player'}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">
+                    {isJa ? '一人称 (例: 私、僕、俺、わし)' : 'First-person (e.g. 私, 俺)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={firstPerson}
+                    onChange={(e) => setFirstPerson(e.target.value)}
+                    placeholder="e.g. 私"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-200 focus:outline-none focus:border-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">
+                    {isJa ? '二人称 (例: あなた、お前、君)' : 'Second-person (e.g. あなた, 君)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={secondPerson}
+                    onChange={(e) => setSecondPerson(e.target.value)}
+                    placeholder="e.g. あなた"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-200 focus:outline-none focus:border-amber-500/50"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-neutral-400 mb-1">
+                  {isJa ? '口調・話し方の特徴（語尾、キャラクター像）' : 'Tone & Style Features (ending, character description)'}
+                </label>
+                <textarea
+                  value={toneStyle}
+                  onChange={(e) => setToneStyle(e.target.value)}
+                  placeholder={
+                    isJa
+                      ? '例: 老齢の男性。語尾は「～じゃ」「～のう」を使用。知識人らしい話し方。'
+                      : 'e.g. Elderly male. Uses polite but old-fashioned language.'
+                  }
+                  rows={4}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-3 text-xs text-neutral-200 focus:outline-none focus:border-amber-500/50 leading-relaxed resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold rounded-xl text-xs transition"
+              >
+                {isJa ? 'プロファイルを保存・適用' : 'Save Profile'}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+export default NpcProfilesTab;
