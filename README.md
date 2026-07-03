@@ -25,6 +25,7 @@ An advanced, AI-powered localization tool for Bethesda RPGs (Skyrim, Fallout, St
 
 - You need an API Key for either **Gemini API** or **OpenAI API**, or a running instance of a local LLM (**Ollama** / **LM Studio**).
 - Export your translation database as an **SST XML** file from xTranslator.
+  - *Note:* If you want to use the **NPC Dialogue Profiles (tone styles/genders)** feature, you must use our custom-built xTranslator which exports NPC details to the XML. Download it from the [Custom xTranslator Releases](https://github.com/tomy6764kuma/xTranslator/releases) page.
 
 ### Installation
 
@@ -104,7 +105,8 @@ Tauri, React, TypeScript で構築された、Bethesda社製 RPG (Skyrim, Fallou
 ### 事前準備
 
 - **Gemini API** または **OpenAI API** の APIキー、あるいはローカル LLM（**Ollama** / **LM Studio**）が必要です。
-- xTranslator から翻訳用の **SST XML** ファイルを書き出しておきます。
+- xTranslator から 翻訳用の **SST XML** ファイルを書き出しておきます。
+  - *注意:* **NPC口調設定機能（話し方や性別の反映）**を使用する場合は、SST XML に NPC 情報を出力できるカスタム版の xTranslator が必要です。こちらの [カスタム版 xTranslator リリースページ](https://github.com/tomy6764kuma/xTranslator/releases) からダウンロードしてご使用ください。（※通常のXMLでもNPC機能以外は問題なく動作します）
 
 ### インストール
 
