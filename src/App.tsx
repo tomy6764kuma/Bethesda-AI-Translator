@@ -268,7 +268,7 @@ export const App: React.FC = () => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    addLog('info', t.loadingFiles(files.length));
+    addLog('info', t.loadingFiles ? t.loadingFiles(files.length) : `Loading ${files.length} files...`);
 
     const newFilesParams: Record<string, XmlParams> = {};
     let allItems: TranslationString[] = [];
@@ -350,7 +350,7 @@ export const App: React.FC = () => {
         URL.revokeObjectURL(url);
       });
 
-      addLog('success', t.saveAllSuccess);
+      addLog('success', t.saveAllSuccess || 'All files exported successfully.');
     } catch (err) {
       addLog('error', t.saveFailed((err as Error).message));
     }
