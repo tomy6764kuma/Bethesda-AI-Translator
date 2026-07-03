@@ -9,6 +9,7 @@ export interface TranslationString {
   sex?: 'Male' | 'Female' | 'Unknown'; // Speaker gender
   status: 'untranslated' | 'translated' | 'modified' | 'ai_generated';
   isSelected?: boolean;
+  fileName?: string;
 }
 
 export interface XmlParams {

@@ -49,7 +49,7 @@ Example Output Format:
 };
 
 export const App: React.FC = () => {
-  const [params, setParams] = useState<XmlParams | null>(null);
+  const [filesParams, setFilesParams] = useState<Record<string, XmlParams>>({});
   const [items, setItems] = useState<TranslationString[]>([]);
   
   const [glossary, setGlossary] = useState<GlossaryEntry[]>(() => {
@@ -263,42 +263,93 @@ export const App: React.FC = () => {
   };
 
   // Handle XML Open
-  const handleOpenFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleOpenFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const content = event.target?.result as string;
-        const { params: parsedParams, items: parsedItems } = XmlParser.parse(content);
-        setParams(parsedParams);
-        setItems(parsedItems);
-        addLog('success', t.xmlLoaded(file.name, parsedItems.length));
-        
-        // Auto-run LLM NPC profiling
-        await handleAutoDetectNpcProfiles(parsedItems);
-      } catch (err) {
-        addLog('error', t.xmlFailed((err as Error).message));
-      }
-    };
-    reader.readAsText(file);
+    addLog('info', t.loadingFiles(files.length));
+
+    const newFilesParams: Record<string, XmlParams> = {};
+    let allItems: TranslationString[] = [];
+
+    const filePromises = Array.from(files).map((file) => {
+      return new Promise<void>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const content = event.target?.result as string;
+            const { params: parsedParams, items: parsedItems } = XmlParser.parse(content);
+            
+            // 各アイテムに所属するファイル名を記録
+            const itemsWithFileName = parsedItems.map(item => ({
+              ...item,
+              fileName: file.name
+            }));
+
+            newFilesParams[file.name] = parsedParams;
+            allItems = [...allItems, ...itemsWithFileName];
+            
+            addLog('success', t.xmlLoaded(file.name, parsedItems.length));
+            resolve();
+          } catch (err) {
+            addLog('error', t.xmlFailed(`${file.name}: ${(err as Error).message}`));
+            reject(err);
+          }
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(file);
+      });
+    });
+
+    try {
+      await Promise.all(filePromises);
+      setFilesParams(newFilesParams);
+      setItems(allItems);
+      
+      // Auto-run LLM NPC profiling for all loaded items
+      await handleAutoDetectNpcProfiles(allItems);
+    } catch (err) {
+      addLog('error', isJa ? '一部のファイルの読み込みに失敗しました。' : 'Failed to load some files.');
+    }
   };
 
   // Handle Save XML
   const handleSaveFile = () => {
-    if (!params || items.length === 0) return;
+    if (Object.keys(filesParams).length === 0 || items.length === 0) return;
 
     try {
-      const xmlContent = XmlParser.generate(params, items);
-      const blob = new Blob([xmlContent], { type: 'text/xml;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${params.addon || 'translated'}_${settings.targetLanguage}.xml`;
-      link.click();
-      URL.revokeObjectURL(url);
-      addLog('success', t.saveSuccess);
+      // ファイル名ごとにアイテムをグループ化
+      const itemsByFile: Record<string, TranslationString[]> = {};
+      items.forEach((item) => {
+        const fileName = item.fileName || 'unknown.xml';
+        if (!itemsByFile[fileName]) {
+          itemsByFile[fileName] = [];
+        }
+        itemsByFile[fileName].push(item);
+      });
+
+      // 各ファイルごとにXMLを生成して保存
+      Object.entries(itemsByFile).forEach(([fileName, fileItems]) => {
+        const fileParams = filesParams[fileName] || {
+          addon: fileName.replace('.xml', ''),
+          source: 'en',
+          dest: 'ja',
+          version: '2'
+        };
+
+        const xmlContent = XmlParser.generate(fileParams, fileItems);
+        const blob = new Blob([xmlContent], { type: 'text/xml;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        
+        const baseName = fileName.endsWith('.xml') ? fileName.slice(0, -4) : fileName;
+        link.download = `${baseName}_${settings.targetLanguage}.xml`;
+        link.click();
+        URL.revokeObjectURL(url);
+      });
+
+      addLog('success', t.saveAllSuccess);
     } catch (err) {
       addLog('error', t.saveFailed((err as Error).message));
     }

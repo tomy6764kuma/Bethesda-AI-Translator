@@ -31,7 +31,8 @@ export const TranslationTable: React.FC<TranslationTableProps> = ({
         item.source.toLowerCase().includes(q) ||
         item.dest.toLowerCase().includes(q) ||
         item.edid.toLowerCase().includes(q) ||
-        (item.npc && item.npc.toLowerCase().includes(q))
+        (item.npc && item.npc.toLowerCase().includes(q)) ||
+        (item.fileName && item.fileName.toLowerCase().includes(q))
       );
     }
     return true;
@@ -116,6 +117,12 @@ export const TranslationTable: React.FC<TranslationTableProps> = ({
                 <span className="px-1.5 py-0.5 rounded bg-neutral-800 text-amber-500 font-semibold">{item.rec}</span>
                 <span className="text-neutral-500 truncate">{item.edid}</span>
               </div>
+              {item.fileName && (
+                <div className="text-[10px] text-neutral-500 truncate flex items-center gap-1" title={item.fileName}>
+                  <span>📄</span>
+                  <span className="truncate">{item.fileName}</span>
+                </div>
+              )}
               {item.npc && (
                 <div className="text-xs text-emerald-400/90 font-medium truncate flex items-center gap-1">
                   <span>🗣️ {item.npc}</span>

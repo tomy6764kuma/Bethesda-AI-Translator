@@ -1,10 +1,12 @@
 export const TRANSLATIONS: Record<string, any> = {
   ja: {
     xmlLoaded: (name: string, count: number) => `${name} を読み込みました (${count} 件)`,
+    loadingFiles: (count: number) => `${count} 件のファイルを読み込んでいます...`,
     xmlFailed: (err: string) => `XML読み込み失敗: ${err}`,
     glossaryLoaded: (name: string, count: number) => `用語集 ${name} を読み込みました (${count} 語)`,
     glossaryFailed: (err: string) => `用語集読み込み失敗: ${err}`,
     saveSuccess: 'XMLを書き出しました。',
+    saveAllSuccess: 'すべてのファイルを書き出しました。',
     saveFailed: (err: string) => `XML書き出し失敗: ${err}`,
     noUntranslated: '未翻訳のテキストはありません。',
     startTranslation: (provider: string) => `一括自動翻訳を開始します (エンジン: ${provider})`,
@@ -69,10 +71,12 @@ export const TRANSLATIONS: Record<string, any> = {
   },
   en: {
     xmlLoaded: (name: string, count: number) => `Loaded ${name} (${count} items)`,
+    loadingFiles: (count: number) => `Loading ${count} files...`,
     xmlFailed: (err: string) => `XML load failed: ${err}`,
     glossaryLoaded: (name: string, count: number) => `Loaded glossary ${name} (${count} terms)`,
     glossaryFailed: (err: string) => `Glossary load failed: ${err}`,
     saveSuccess: 'XML file exported successfully.',
+    saveAllSuccess: 'All files exported successfully.',
     saveFailed: (err: string) => `XML export failed: ${err}`,
     noUntranslated: 'No untranslated items left.',
     startTranslation: (provider: string) => `Starting batch translation (Engine: ${provider})`,
@@ -137,10 +141,12 @@ export const TRANSLATIONS: Record<string, any> = {
   },
   ko: {
     xmlLoaded: (name: string, count: number) => `${name}을(를) 불러왔습니다 (${count}개 항목)`,
+    loadingFiles: (count: number) => `${count}개의 파일을 불러오고 있습니다...`,
     xmlFailed: (err: string) => `XML 로드 실패: ${err}`,
     glossaryLoaded: (name: string, count: number) => `용어집 ${name}을(를) 불러왔습니다 (${count}개 단어)`,
     glossaryFailed: (err: string) => `용어집 로드 실패: ${err}`,
     saveSuccess: 'XML 파일을 내보냈습니다.',
+    saveAllSuccess: '모든 파일을 내보냈습니다.',
     saveFailed: (err: string) => `XML 내보내기 실패: ${err}`,
     noUntranslated: '번역되지 않은 텍스트가 없습니다.',
     startTranslation: (provider: string) => `일괄 자동 번역을 시작합니다 (엔진: ${provider})`,
