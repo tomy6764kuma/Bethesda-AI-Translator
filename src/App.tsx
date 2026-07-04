@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS: AiSettings = {
   openai: { apiKey: '', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
   ollama: { baseUrl: 'http://localhost:11434', model: 'llama3' },
   lmstudio: { baseUrl: 'http://localhost:1234', model: 'local-model' },
+  llamacpp: { baseUrl: 'http://localhost:8080', model: 'local-model' },
   batchSize: 15,
   autoBatchSize: true,
   maxConcurrent: 1,
@@ -32,7 +33,7 @@ const DEFAULT_SETTINGS: AiSettings = {
 Translate the provided English game texts into natural, high-quality {target_lang}.
 
 Rules:
-1. Return strictly a JSON array of objects. Each object must have keys "id" and "translated".
+1. Return strictly a JSON object containing a "translations" array. Each object in the array must have keys "id" and "translated".
 2. Do not alter placeholders, code tags, or format strings (e.g. %s, <br>, [EDID]).
 3. Do not translate or modify contents inside curly braces (e.g., {sigh}, {angry}, {yawn}). These are acting/voice directions and must remain exactly as they are in English inside the translated text.
 4. Pay attention to speaker NPC name and gender if provided (e.g. Male/Female) to use natural pronouns and tone.
@@ -43,10 +44,12 @@ Rules:
 {npc_profiles}
 {glossary}
 Example Output Format:
-[
-  {"id": "str_1", "translated": "こんにちは。"},
-  {"id": "str_2", "translated": "ドラゴンが襲ってきたぞ！"}
-]`,
+{
+  "translations": [
+    {"id": "str_1", "translated": "こんにちは。"},
+    {"id": "str_2", "translated": "ドラゴンが襲ってきたぞ！"}
+  ]
+}`,
 };
 
 export const App: React.FC = () => {
@@ -77,6 +80,7 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isExtractorOpen, setIsExtractorOpen] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
+  const cancelTranslationRef = React.useRef(false);
 
   const [settings, setSettings] = useState<AiSettings>(() => {
     try {
@@ -403,6 +407,11 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleStopTranslation = () => {
+    cancelTranslationRef.current = true;
+    addLog('info', isJa ? '翻訳停止シグナルを送信中...' : 'Sending translation stop signal...');
+  };
+
   // Start Batch Translation (with intelligent cloud RPM/TPM and local Context Limit scheduling)
   const handleStartTranslation = async () => {
     const untranslated = items.filter((i) => i.status === 'untranslated');
@@ -412,11 +421,12 @@ export const App: React.FC = () => {
     }
 
     setIsTranslating(true);
+    cancelTranslationRef.current = false;
     addLog('ai', t.startTranslation(settings.activeProvider.toUpperCase()));
 
     try {
       const provider = AiFactory.createProvider(settings);
-      const isLocalLlm = settings.activeProvider === 'ollama' || settings.activeProvider === 'lmstudio';
+      const isLocalLlm = settings.activeProvider === 'ollama' || settings.activeProvider === 'lmstudio' || settings.activeProvider === 'llamacpp';
       const calculatedBatchSize = getBatchSize(isLocalLlm);
 
       addLog('info', t.autoBatchSizeInfo(calculatedBatchSize));
@@ -431,6 +441,10 @@ export const App: React.FC = () => {
       let tokenWindowTimestamps: number[] = [];
 
       for (let index = 0; index < batches.length; index++) {
+        if (cancelTranslationRef.current) {
+          addLog('info', isJa ? '翻訳処理が手動で停止されました。' : 'Translation stopped by user.');
+          break;
+        }
         const chunk = batches[index];
         addLog('info', t.translatingBatch(index + 1, batches.length));
 
@@ -472,9 +486,9 @@ export const App: React.FC = () => {
           tokenWindowTokens.push(batchTextLength);
         }
 
-        // Prepare request items
-        const requestItems = chunk.map((c) => ({
-          id: c.id,
+        // Prepare request items with simplified sequential IDs to prevent local LLM ID truncation/reset bugs
+        const requestItems = chunk.map((c, idx) => ({
+          id: String(idx),
           source: c.source,
           npc: c.npc,
           sex: c.sex,
@@ -539,7 +553,9 @@ export const App: React.FC = () => {
               errorMsg.includes('INTERNAL') ||
               errorMsg.includes('timeout') ||
               errorMsg.includes('rate limit') ||
-              errorMsg.includes('429');
+              errorMsg.includes('429') ||
+              errorMsg.includes('Failed to parse') ||
+              errorMsg.includes('JSON');
 
             if (isRetryable && retryCount < maxRetries) {
               retryCount++;
@@ -553,6 +569,24 @@ export const App: React.FC = () => {
             }
           }
         }
+
+        // Safe ID Restoration: Restore simplified sequential IDs back to their original unique IDs.
+        // This completely prevents mapping mismatches without causing line-shifting data corruption.
+        results.forEach((res) => {
+          const idx = parseInt(res.id, 10);
+          if (!isNaN(idx) && idx >= 0 && idx < chunk.length) {
+            res.id = chunk[idx].id;
+          } else {
+            // Fallback for LLMs returning e.g. "str_0" or similar
+            const match = res.id.match(/\d+/);
+            if (match) {
+              const numIdx = parseInt(match[0], 10);
+              if (numIdx >= 0 && numIdx < chunk.length) {
+                res.id = chunk[numIdx].id;
+              }
+            }
+          }
+        });
 
         // Update UI State
         setItems((prev) =>
@@ -575,38 +609,146 @@ export const App: React.FC = () => {
 
       addLog('success', t.allCompleted);
     } catch (err) {
-      addLog('error', t.stopped((err as Error).message));
+      const errorMsg = err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'message' in err) ? (err as any).message : String(err);
+      addLog('error', t.stopped(errorMsg));
     } finally {
       setIsTranslating(false);
     }
   };
 
   // AI translator specifically for extracted proper nouns
-  const handleAiTranslateNouns = async (nouns: string[]): Promise<Record<string, string>> => {
+  const handleAiTranslateNouns = async (
+    nouns: string[],
+    onPartialResult?: (partial: Record<string, string>) => void
+  ): Promise<Record<string, string>> => {
     addLog('ai', t.aiNounTranslating(nouns.length));
     try {
       const provider = AiFactory.createProvider(settings);
       
-      // Structure proper nouns translation request as simple objects
-      const requestItems = nouns.map((noun, idx) => ({
-        id: `noun_${idx}`,
-        source: noun,
-      }));
-
-      const results = await provider.translateBatch(
-        requestItems,
-        [],
-        undefined,
-        (msg) => addLog('ai', msg)
-      );
-
+      const isCloud = settings.activeProvider === 'gemini' || settings.activeProvider === 'openai';
+      const batchSize = isCloud ? 100 : (settings.batchSize || 15);
+      
       const mapping: Record<string, string> = {};
-      nouns.forEach((noun, idx) => {
-        const res = results.find((r) => r.id === `noun_${idx}`);
-        if (res && res.translated) {
-          mapping[noun] = res.translated;
+      let requestTimestamps: number[] = [];
+
+      const NOUN_TRANSLATION_PROMPT = `You are an expert game localizer specializing in Bethesda RPGs (Skyrim, Fallout, Starfield).
+Translate the provided list of English proper nouns (names, locations, items) into natural, high-quality {target_lang}.
+
+Rules:
+1. Return strictly a JSON object containing a "translations" array. Each object in the array must have keys "id" and "translated".
+2. Do not write any explanations, introduction, or conversational filler. Return ONLY the raw JSON object.
+3. Keep names phonetically transliterated into target language scripts where appropriate (e.g. into Katakana for Japanese, Hangul for Korean, Cyrillic for Russian), unless they have established semantic translations.
+4. Do not alter placeholders or format characters.
+
+Example Output Format:
+{
+  "translations": [
+    {"id": "0", "translated": "ダイアモンドシティ"},
+    {"id": "1", "translated": "ネリス"}
+  ]
+}`;
+
+      for (let i = 0; i < nouns.length; i += batchSize) {
+        const batchNouns = nouns.slice(i, i + batchSize);
+
+        // RPM Check for Cloud LLMs
+        if (isCloud) {
+          const now = Date.now();
+          requestTimestamps = requestTimestamps.filter(ts => now - ts < 60000);
+          if (requestTimestamps.length >= settings.rpm) {
+            const oldestRequest = requestTimestamps[0];
+            const waitTime = 60000 - (now - oldestRequest);
+            if (waitTime > 0) {
+              addLog('warning', t.batchWait(waitTime / 1000));
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+          }
+          requestTimestamps.push(Date.now());
         }
-      });
+
+        addLog('info', isJa
+          ? `固有名詞翻訳中: ${i + 1}〜${Math.min(i + batchSize, nouns.length)}件目 / 全${nouns.length}件`
+          : `Translating nouns: ${i + 1}-${Math.min(i + batchSize, nouns.length)} of ${nouns.length}`
+        );
+
+        // Prepare request items with simplified sequential IDs for LLM stability
+        const requestItems = batchNouns.map((noun, idx) => ({
+          id: String(idx),
+          source: noun,
+        }));
+
+        let results;
+        let retryCount = 0;
+        const maxRetries = 3;
+        const retryDelay = Math.max(7000, Math.ceil(75000 / settings.rpm)); // Dynamic delay based on RPM
+
+        while (true) {
+          try {
+            results = await provider.translateBatch(
+              requestItems,
+              [],
+              undefined,
+              (msg) => addLog('ai', msg),
+              NOUN_TRANSLATION_PROMPT
+            );
+            break; // Success! Exit retry loop
+          } catch (err) {
+            const errorMsg = (err as Error).message;
+            const isRetryable =
+              errorMsg.includes('503') ||
+              errorMsg.includes('500') ||
+              errorMsg.includes('UNAVAILABLE') ||
+              errorMsg.includes('INTERNAL') ||
+              errorMsg.includes('timeout') ||
+              errorMsg.includes('rate limit') ||
+              errorMsg.includes('429') ||
+              errorMsg.includes('Failed to parse') ||
+              errorMsg.includes('JSON');
+
+            if (isRetryable && retryCount < maxRetries) {
+              retryCount++;
+              addLog('warning', isJa
+                ? `固有名詞翻訳でエラーが発生しました。${(retryDelay / 1000).toFixed(1)}秒後に自動リトライします (${retryCount}/${maxRetries}): ${errorMsg}`
+                : `Error occurred in proper noun translation. Retrying in ${(retryDelay / 1000).toFixed(1)}s (${retryCount}/${maxRetries}): ${errorMsg}`
+              );
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+            } else {
+              throw err; // Re-throw fatal or max-retried errors
+            }
+          }
+        }
+
+        // Safe ID Restoration for proper nouns: Sequential ID back to e.g. noun_15
+        results.forEach((res) => {
+          const idx = parseInt(res.id, 10);
+          if (!isNaN(idx) && idx >= 0 && idx < batchNouns.length) {
+            res.id = `noun_${i + idx}`;
+          } else {
+            // Fallback for LLMs returning e.g. "noun_0"
+            const match = res.id.match(/\d+/);
+            if (match) {
+              const numIdx = parseInt(match[0], 10);
+              if (numIdx >= 0 && numIdx < batchNouns.length) {
+                res.id = `noun_${i + numIdx}`;
+              }
+            }
+          }
+        });
+
+        const partialMapping: Record<string, string> = {};
+        batchNouns.forEach((noun, idx) => {
+          const res = results.find((r) => r.id === `noun_${i + idx}`);
+          if (res && res.translated) {
+            mapping[noun] = res.translated;
+            partialMapping[noun] = res.translated;
+          }
+        });
+
+        // Notify partial results to UI in real-time
+        if (onPartialResult) {
+          onPartialResult(partialMapping);
+        }
+      }
 
       addLog('success', t.aiNounSuccess);
       return mapping;
@@ -624,6 +766,7 @@ export const App: React.FC = () => {
         onOpenFile={handleOpenFile}
         onSaveFile={handleSaveFile}
         onStartTranslation={handleStartTranslation}
+        onStopTranslation={handleStopTranslation}
         onOpenSettings={() => setIsSettingsOpen(true)}
         activeProvider={settings.activeProvider}
         onChangeProvider={(p: AiProviderType) => setSettings({ ...settings, activeProvider: p })}

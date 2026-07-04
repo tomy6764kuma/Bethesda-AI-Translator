@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import { AiSettings } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
+
+const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
+const safeTauriFetch = isTauri ? tauriFetch : window.fetch;
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -22,6 +26,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [openaiModels, setOpenaiModels] = useState<string[]>([]);
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   const [lmstudioModels, setLmstudioModels] = useState<string[]>([]);
+  const [llamacppModels, setLlamacppModels] = useState<string[]>([]);
   const [fetchingProvider, setFetchingProvider] = useState<string | null>(null);
 
   useEffect(() => {
@@ -112,8 +117,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
     setFetchingProvider('ollama');
     try {
-      const res = await fetch(`${url}/api/tags`);
-      const data = await res.json();
+      const res = await safeTauriFetch(`${url}/api/tags`, {
+        headers: { 'Origin': '' }
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      const text = await res.text();
+      if (!text.trim()) {
+        throw new Error('Received empty response from server.');
+      }
+      const data = JSON.parse(text);
       if (data.models && Array.isArray(data.models)) {
         const list = data.models.map((m: any) => m.name);
         setOllamaModels(list);
@@ -127,7 +141,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         alert(isJa ? 'モデル一覧を取得できませんでした。' : 'Failed to retrieve models.');
       }
     } catch (e) {
-      alert(`Error fetching Ollama models: ${(e as Error).message}`);
+      const errorMsg = e instanceof Error ? e.message : (typeof e === 'object' && e !== null && 'message' in e) ? (e as any).message : String(e);
+      alert(`Error fetching Ollama models: ${errorMsg}`);
     } finally {
       setFetchingProvider(null);
     }
@@ -141,8 +156,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
     setFetchingProvider('lmstudio');
     try {
-      const res = await fetch(`${url}/v1/models`);
-      const data = await res.json();
+      const res = await safeTauriFetch(`${url}/v1/models`, {
+        headers: { 'Origin': '' }
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      const text = await res.text();
+      if (!text.trim()) {
+        throw new Error('Received empty response from server.');
+      }
+      const data = JSON.parse(text);
       if (data.data && Array.isArray(data.data)) {
         const list = data.data.map((m: any) => m.id);
         setLmstudioModels(list);
@@ -156,7 +180,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         alert(isJa ? 'モデル一覧を取得できませんでした。' : 'Failed to retrieve models.');
       }
     } catch (e) {
-      alert(`Error fetching LM Studio models: ${(e as Error).message}`);
+      const errorMsg = e instanceof Error ? e.message : (typeof e === 'object' && e !== null && 'message' in e) ? (e as any).message : String(e);
+      alert(`Error fetching LM Studio models: ${errorMsg}`);
+    } finally {
+      setFetchingProvider(null);
+    }
+  };
+
+  const fetchLlamacppModelsList = async () => {
+    const url = localSettings.llamacpp.baseUrl;
+    if (!url) {
+      alert(isJa ? 'llama.cpp Base URLを入力してください。' : 'Please enter llama.cpp Base URL.');
+      return;
+    }
+    setFetchingProvider('llamacpp');
+    try {
+      const res = await safeTauriFetch(`${url}/v1/models`, {
+        headers: { 'Origin': '' }
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      const text = await res.text();
+      if (!text.trim()) {
+        throw new Error('Received empty response from server.');
+      }
+      const data = JSON.parse(text);
+      if (data.data && Array.isArray(data.data)) {
+        const list = data.data.map((m: any) => m.id);
+        setLlamacppModels(list);
+        if (list.length > 0 && !list.includes(localSettings.llamacpp.model)) {
+          setLocalSettings(prev => ({
+            ...prev,
+            llamacpp: { ...prev.llamacpp, model: list[0] }
+          }));
+        }
+      } else {
+        alert(isJa ? 'モデル一覧を取得できませんでした。' : 'Failed to retrieve models.');
+      }
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : (typeof e === 'object' && e !== null && 'message' in e) ? (e as any).message : String(e);
+      alert(`Error fetching llama.cpp models: ${errorMsg}`);
     } finally {
       setFetchingProvider(null);
     }
@@ -436,7 +500,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="p-4 bg-neutral-950 rounded-xl border border-neutral-800/80 space-y-3">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-emerald-400 flex items-center gap-2 text-sm">
-                🦙 Local LLM (Ollama & LM Studio)
+                🦙 Local LLM (Ollama / LM Studio / llama.cpp)
               </h3>
               <div className="flex gap-2">
                 <button
@@ -453,9 +517,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 >
                   {fetchingProvider === 'lmstudio' ? 'Fetching...' : 'LM Studio List'}
                 </button>
+                <button
+                  onClick={fetchLlamacppModelsList}
+                  disabled={fetchingProvider === 'llamacpp'}
+                  className="px-2 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-[10px] rounded border border-cyan-500/20 transition font-bold"
+                >
+                  {fetchingProvider === 'llamacpp' ? 'Fetching...' : 'llama.cpp List'}
+                </button>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-neutral-400 mb-1">Ollama Base URL</label>
                 <input
@@ -468,7 +539,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     })
                   }
                   placeholder="http://localhost:11434"
-                  className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-neutral-200 focus:outline-none focus:border-amber-500/50"
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2 py-2 text-neutral-200 focus:outline-none focus:border-amber-500/50"
                 />
               </div>
               <div>
@@ -483,7 +554,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     })
                   }
                   placeholder="http://localhost:1234"
-                  className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-neutral-200 focus:outline-none focus:border-amber-500/50"
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2 py-2 text-neutral-200 focus:outline-none focus:border-amber-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-neutral-400 mb-1">llama.cpp Base URL</label>
+                <input
+                  type="text"
+                  value={localSettings.llamacpp.baseUrl}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      llamacpp: { ...localSettings.llamacpp, baseUrl: e.target.value },
+                    })
+                  }
+                  placeholder="http://localhost:8080"
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2 py-2 text-neutral-200 focus:outline-none focus:border-amber-500/50"
                 />
               </div>
             </div>
@@ -520,16 +606,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </select>
+                ) : localSettings.activeProvider === 'llamacpp' && llamacppModels.length > 0 ? (
+                  <select
+                    value={localSettings.llamacpp.model}
+                    onChange={(e) =>
+                      setLocalSettings({
+                        ...localSettings,
+                        llamacpp: { ...localSettings.llamacpp, model: e.target.value },
+                      })
+                    }
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-neutral-200 focus:outline-none focus:border-amber-500/50 cursor-pointer"
+                  >
+                    {llamacppModels.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
                 ) : (
                   <input
                     type="text"
-                    value={localSettings.activeProvider === 'ollama' ? localSettings.ollama.model : localSettings.lmstudio.model}
+                    value={
+                      localSettings.activeProvider === 'ollama' 
+                        ? localSettings.ollama.model 
+                        : localSettings.activeProvider === 'llamacpp'
+                        ? localSettings.llamacpp.model
+                        : localSettings.lmstudio.model
+                    }
                     onChange={(e) => {
                       const modelName = e.target.value;
                       setLocalSettings({
                         ...localSettings,
                         ollama: { ...localSettings.ollama, model: modelName },
-                        lmstudio: { ...localSettings.lmstudio, model: modelName }
+                        lmstudio: { ...localSettings.lmstudio, model: modelName },
+                        llamacpp: { ...localSettings.llamacpp, model: modelName }
                       });
                     }}
                     placeholder="llama3"

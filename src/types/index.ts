@@ -32,7 +32,7 @@ export interface NpcProfile {
   toneStyle: string; // Tone style (e.g. 老人風の～じゃ、乱暴な口調、お嬢様口調)
 }
 
-export type AiProviderType = 'gemini' | 'openai' | 'ollama' | 'lmstudio';
+export type AiProviderType = 'gemini' | 'openai' | 'ollama' | 'lmstudio' | 'llamacpp';
 export type GameType = 'fallout' | 'tes' | 'starfield' | 'default';
 
 export interface AiSettings {
@@ -52,6 +52,10 @@ export interface AiSettings {
     model: string;
   };
   lmstudio: {
+    baseUrl: string;
+    model: string;
+  };
+  llamacpp: {
     baseUrl: string;
     model: string;
   };
