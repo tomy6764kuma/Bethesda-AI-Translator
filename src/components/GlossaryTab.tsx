@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GlossaryEntry } from '../types';
+import { TRANSLATIONS } from '../i18n/translations';
 
 interface GlossaryTabProps {
   glossary: GlossaryEntry[];
@@ -20,6 +21,7 @@ export const GlossaryTab: React.FC<GlossaryTabProps> = ({
   const [translated, setTranslated] = useState('');
   const [search, setSearch] = useState('');
 
+  const t = TRANSLATIONS[uiLanguage] || TRANSLATIONS['en'];
   const isJa = uiLanguage === 'ja';
 
   const handleAdd = (e: React.FormEvent) => {
@@ -51,7 +53,7 @@ export const GlossaryTab: React.FC<GlossaryTabProps> = ({
           onImportGlossary(entries);
         }
       } catch (err) {
-        alert(isJa ? 'JSONファイルの解析に失敗しました。' : 'Failed to parse JSON file.');
+        alert(t.alertGlossaryParseFailed);
       }
     };
     reader.readAsText(file);
@@ -78,19 +80,17 @@ export const GlossaryTab: React.FC<GlossaryTabProps> = ({
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-lg font-bold text-neutral-100 font-serif">
-            {isJa ? '用語集 (固有名詞辞書) 管理' : 'Glossary Management'}
+            {t.glossaryTitle}
           </h2>
           <p className="text-xs text-neutral-500 mt-1">
-            {isJa
-              ? '翻訳時に優先的に適用する専門用語・固有名詞を登録・管理します。'
-              : 'Add and manage terms that should be translated consistently.'}
+            {t.glossarySubTitle}
           </p>
         </div>
 
         {/* Import/Export */}
         <div className="flex items-center space-x-2">
           <label className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-xl text-xs font-semibold cursor-pointer transition flex items-center gap-1.5">
-            <span>📥 {isJa ? '用語集をインポート' : 'Import JSON'}</span>
+            <span>📥 {t.importGlossaryBtn}</span>
             <input type="file" accept=".json" onChange={handleFileUpload} className="hidden" />
           </label>
           <button
@@ -98,7 +98,7 @@ export const GlossaryTab: React.FC<GlossaryTabProps> = ({
             disabled={glossary.length === 0}
             className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white disabled:opacity-40 rounded-xl text-xs font-semibold transition flex items-center gap-1.5"
           >
-            <span>📤 {isJa ? '用語集をエクスポート' : 'Export JSON'}</span>
+            <span>📤 {t.exportGlossaryBtn}</span>
           </button>
         </div>
       </div>
@@ -107,11 +107,11 @@ export const GlossaryTab: React.FC<GlossaryTabProps> = ({
         {/* Add Entry Form */}
         <form onSubmit={handleAdd} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4">
           <h3 className="font-bold text-sm text-amber-400 font-serif">
-            {isJa ? '新しい用語の追加' : 'Add New Term'}
+            {t.addTermTitle}
           </h3>
 
           <div>
-            <label className="block text-xs text-neutral-400 mb-1">{isJa ? '原文 (英語)' : 'Original (English)'}</label>
+            <label className="block text-xs text-neutral-400 mb-1">{t.originalLangLabel}</label>
             <input
               type="text"
               value={original}
@@ -123,7 +123,7 @@ export const GlossaryTab: React.FC<GlossaryTabProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs text-neutral-400 mb-1">{isJa ? '訳文 (日本語)' : 'Translation (Japanese)'}</label>
+            <label className="block text-xs text-neutral-400 mb-1">{t.targetLangTranslationLabel}</label>
             <input
               type="text"
               value={translated}
@@ -138,7 +138,7 @@ export const GlossaryTab: React.FC<GlossaryTabProps> = ({
             type="submit"
             className="w-full py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold rounded-xl text-xs transition"
           >
-            {isJa ? '辞書に追加' : 'Add Term'}
+            {t.addTermBtn}
           </button>
         </form>
 
@@ -148,7 +148,7 @@ export const GlossaryTab: React.FC<GlossaryTabProps> = ({
           <div className="mb-4">
             <input
               type="text"
-              placeholder={isJa ? '用語を検索...' : 'Search terms...'}
+              placeholder={t.searchGlossaryPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-neutral-950 border border-neutral-800 text-xs text-neutral-300 px-3 py-2 rounded-xl focus:outline-none focus:border-amber-500/50"
@@ -159,7 +159,7 @@ export const GlossaryTab: React.FC<GlossaryTabProps> = ({
           <div className="flex-1 overflow-y-auto divide-y divide-neutral-800/60">
             {filteredGlossary.length === 0 ? (
               <div className="text-center py-12 text-neutral-600 text-xs">
-                {isJa ? '登録されている用語がありません。' : 'No terms registered.'}
+                {t.noTermsRegistered}
               </div>
             ) : (
               filteredGlossary.map((entry) => (
@@ -172,7 +172,7 @@ export const GlossaryTab: React.FC<GlossaryTabProps> = ({
                     onClick={() => onDeleteEntry(entry.original)}
                     className="text-neutral-500 hover:text-red-400 transition text-xs px-2 py-1 rounded hover:bg-neutral-800"
                   >
-                    {isJa ? '削除' : 'Delete'}
+                    {t.deleteBtn}
                   </button>
                 </div>
               ))
