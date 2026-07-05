@@ -52,9 +52,23 @@ Example Output Format:
 }`,
 };
 
+const getCleanNpcName = (rawNpc: string | undefined): string => {
+  if (!rawNpc) return '';
+  let cleanName = rawNpc.trim();
+  if (cleanName.startsWith('[')) {
+    const endIdx = cleanName.indexOf(']');
+    if (endIdx !== -1) {
+      cleanName = cleanName.substring(1, endIdx).trim();
+    }
+  }
+  return cleanName;
+};
+
 export const App: React.FC = () => {
   const [filesParams, setFilesParams] = useState<Record<string, XmlParams>>({});
   const [items, setItems] = useState<TranslationString[]>([]);
+  const [availableNpcs, setAvailableNpcs] = useState<string[]>([]);
+  const [selectedNpcFilters, setSelectedNpcFilters] = useState<string[]>([]);
   
   const [glossary, setGlossary] = useState<GlossaryEntry[]>(() => {
     try {
@@ -311,6 +325,17 @@ export const App: React.FC = () => {
       setFilesParams(newFilesParams);
       setItems(allItems);
       
+      // Extract available NPCs
+      const npcs = new Set<string>();
+      allItems.forEach((item) => {
+        const cleanName = getCleanNpcName(item.npc);
+        if (cleanName && !cleanName.startsWith('NPC_') && !/^[0-9A-Fa-f]+$/.test(cleanName)) {
+          npcs.add(cleanName);
+        }
+      });
+      setAvailableNpcs(Array.from(npcs).sort());
+      setSelectedNpcFilters([]); // Reset filters on new files
+      
       // Auto-run LLM NPC profiling for all loaded items
       await handleAutoDetectNpcProfiles(allItems);
     } catch (err) {
@@ -319,7 +344,7 @@ export const App: React.FC = () => {
   };
 
   // Handle Save XML
-  const handleSaveFile = () => {
+  const handleSaveFile = async () => {
     if (Object.keys(filesParams).length === 0 || items.length === 0) return;
 
     try {
@@ -333,8 +358,10 @@ export const App: React.FC = () => {
         itemsByFile[fileName].push(item);
       });
 
+      const { invoke } = await import('@tauri-apps/api/core');
+
       // 各ファイルごとにXMLを生成して保存
-      Object.entries(itemsByFile).forEach(([fileName, fileItems]) => {
+      for (const [fileName, fileItems] of Object.entries(itemsByFile)) {
         const fileParams = filesParams[fileName] || {
           addon: fileName.replace('.xml', ''),
           source: 'en',
@@ -343,18 +370,24 @@ export const App: React.FC = () => {
         };
 
         const xmlContent = XmlParser.generate(fileParams, fileItems);
-        const blob = new Blob([xmlContent], { type: 'text/xml;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        
         const baseName = fileName.endsWith('.xml') ? fileName.slice(0, -4) : fileName;
-        link.download = `${baseName}_${settings.targetLanguage}.xml`;
-        link.click();
-        URL.revokeObjectURL(url);
-      });
+        const defaultName = `${baseName}_${settings.targetLanguage}.xml`;
 
-      addLog('success', t.saveAllSuccess || 'All files exported successfully.');
+        try {
+          const savedPath = await invoke<string>('save_xml_file', {
+            defaultName,
+            content: xmlContent
+          });
+          addLog('success', isJa 
+            ? `XMLファイルを保存しました: ${savedPath}` 
+            : `Saved XML file to: ${savedPath}`
+          );
+        } catch (err) {
+          if (err !== 'cancelled') {
+            throw err;
+          }
+        }
+      }
     } catch (err) {
       addLog('error', t.saveFailed((err as Error).message));
     }
@@ -386,6 +419,37 @@ export const App: React.FC = () => {
     );
   };
 
+  // Clear all translations for selected NPCs
+  const handleClearSelectedNpcsTranslations = () => {
+    if (selectedNpcFilters.length === 0) return;
+
+    const selectedNames = selectedNpcFilters.join(', ');
+    const msg = t.clearNpcConfirm
+      ? t.clearNpcConfirm(selectedNames)
+      : `Are you sure you want to clear all translations for the selected NPC(s) [${selectedNames}]?`;
+
+    if (window.confirm(msg)) {
+      const filterSet = new Set(selectedNpcFilters);
+      setItems((prev) =>
+        prev.map((item) => {
+          const cleanName = getCleanNpcName(item.npc);
+          if (filterSet.has(cleanName)) {
+            return {
+              ...item,
+              dest: '',
+              status: 'untranslated',
+            };
+          }
+          return item;
+        })
+      );
+      addLog('info', isJa 
+        ? `NPC [${selectedNames}] の翻訳結果を一括クリアしました。` 
+        : `Cleared all translations for NPC(s) [${selectedNames}].`
+      );
+    }
+  };
+
   // Auto calculate optimal batch size based on RPM / Context Limit
   const getBatchSize = (isLocalLlm: boolean) => {
     if (!settings.autoBatchSize) {
@@ -414,8 +478,43 @@ export const App: React.FC = () => {
 
   // Start Batch Translation (with intelligent cloud RPM/TPM and local Context Limit scheduling)
   const handleStartTranslation = async () => {
-    const untranslated = items.filter((i) => i.status === 'untranslated');
-    if (untranslated.length === 0) {
+    const hasNpcFilters = selectedNpcFilters.length > 0;
+    
+    // 対象のセリフ行をフィルタリング
+    let targetItems = items;
+    if (hasNpcFilters) {
+      const filterSet = new Set(selectedNpcFilters);
+      targetItems = items.filter(item => {
+        const cleanName = getCleanNpcName(item.npc);
+        return filterSet.has(cleanName);
+      });
+    }
+
+    if (targetItems.length === 0) {
+      addLog('info', isJa ? '翻訳対象のセリフがありません。' : 'No items to translate.');
+      return;
+    }
+
+    // すでに翻訳済みの行をカウント
+    const translatedCount = targetItems.filter(
+      (i) => i.status !== 'untranslated' && i.dest && i.dest.trim().length > 0
+    ).length;
+    let shouldOverwrite = false;
+
+    if (hasNpcFilters && translatedCount > 0) {
+      const selectedNames = selectedNpcFilters.join(', ');
+      const msg = t.overwriteNpcConfirm
+        ? t.overwriteNpcConfirm(selectedNames)
+        : `Translated lines already exist for NPC(s) [${selectedNames}]. Do you want to overwrite and re-translate them?\n\n・[OK]: Re-translate all lines (Overwrite)\n・[Cancel]: Translate untranslated lines only`;
+      
+      shouldOverwrite = window.confirm(msg);
+    }
+
+    const itemsToTranslate = shouldOverwrite
+      ? targetItems
+      : targetItems.filter((i) => i.status === 'untranslated');
+
+    if (itemsToTranslate.length === 0) {
       addLog('info', t.noUntranslated);
       return;
     }
@@ -432,8 +531,8 @@ export const App: React.FC = () => {
       addLog('info', t.autoBatchSizeInfo(calculatedBatchSize));
 
       let batches: TranslationString[][] = [];
-      for (let i = 0; i < untranslated.length; i += calculatedBatchSize) {
-        batches.push(untranslated.slice(i, i + calculatedBatchSize));
+      for (let i = 0; i < itemsToTranslate.length; i += calculatedBatchSize) {
+        batches.push(itemsToTranslate.slice(i, i + calculatedBatchSize));
       }
 
       let requestTimestamps: number[] = [];
@@ -776,6 +875,10 @@ Example Output Format:
         totalCount={items.length}
         untranslatedCount={untranslatedCount}
         uiLanguage={settings.uiLanguage}
+        availableNpcs={availableNpcs}
+        selectedNpcFilters={selectedNpcFilters}
+        onChangeNpcFilters={setSelectedNpcFilters}
+        onClearNpcTranslations={handleClearSelectedNpcsTranslations}
       />
 
       {/* Main Tab Controls & Extractor Toggle */}

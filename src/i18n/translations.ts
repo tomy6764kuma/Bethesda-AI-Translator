@@ -69,6 +69,11 @@ export const TRANSLATIONS: Record<string, any> = {
     minimize: '最小化 ✕',
     showLogs: (c: number) => `📜 コンソールログを表示 (${c})`,
     empty: '実行ログはまだありません。翻訳処理を開始するとここにリアルタイム表示されます。',
+    targetNpcFilterLabel: '対象NPC',
+    allNpcs: 'すべてのNPC',
+    clearNpcTranslations: '選択NPCの翻訳をクリア',
+    clearNpcConfirm: (names: string) => `選択中のNPC [${names}] のすべての翻訳文（訳文）を一括で空欄に戻しますか？`,
+    overwriteNpcConfirm: (names: string) => `選択中のNPC [${names}] の翻訳済みセリフが既に存在します。新しい口調設定を適用して上書き翻訳しますか？\n\n・[OK]: すべて上書き再翻訳\n・[キャンセル]: 未翻訳の行のみ翻訳`,
   },
   en: {
     xmlLoaded: (name: string, count: number) => `Loaded ${name} (${count} items)`,
@@ -140,6 +145,11 @@ export const TRANSLATIONS: Record<string, any> = {
     minimize: 'Minimize ✕',
     showLogs: (c: number) => `📜 Show Console Logs (${c})`,
     empty: 'No logs generated yet. Translation activities will appear here in real time.',
+    targetNpcFilterLabel: 'Target NPC',
+    allNpcs: 'All NPCs',
+    clearNpcTranslations: 'Clear Selected NPC(s)',
+    clearNpcConfirm: (names: string) => `Are you sure you want to clear all translations for the selected NPC(s) [${names}]?`,
+    overwriteNpcConfirm: (names: string) => `Translated lines already exist for NPC(s) [${names}]. Do you want to overwrite and re-translate them?\n\n・[OK]: Re-translate all lines (Overwrite)\n・[Cancel]: Translate untranslated lines only`,
   },
   ko: {
     xmlLoaded: (name: string, count: number) => `${name}을(를) 불러왔습니다 (${count}개 항목)`,
