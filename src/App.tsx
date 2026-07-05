@@ -875,10 +875,6 @@ Example Output Format:
         totalCount={items.length}
         untranslatedCount={untranslatedCount}
         uiLanguage={settings.uiLanguage}
-        availableNpcs={availableNpcs}
-        selectedNpcFilters={selectedNpcFilters}
-        onChangeNpcFilters={setSelectedNpcFilters}
-        onClearNpcTranslations={handleClearSelectedNpcsTranslations}
       />
 
       {/* Main Tab Controls & Extractor Toggle */}
