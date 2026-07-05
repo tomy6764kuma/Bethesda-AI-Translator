@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { TranslationString, XmlParams, GlossaryEntry, NpcProfile, AiSettings, LogEntry, AiProviderType, GameType } from './types';
 import { XmlParser } from './services/xmlParser';
 import { GlossaryService } from './services/glossaryService';
@@ -357,8 +358,6 @@ export const App: React.FC = () => {
         }
         itemsByFile[fileName].push(item);
       });
-
-      const { invoke } = await import('@tauri-apps/api/core');
 
       // 各ファイルごとにXMLを生成して保存
       for (const [fileName, fileItems] of Object.entries(itemsByFile)) {
