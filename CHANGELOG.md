@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.0.4] - 2026-07-06
 
 ### Added (新規追加)
+- **Target NPC Filtering in Translation Tab**: Relocated the NPC filter dropdown directly inside the Translation Editor tab for better accessibility. When selected, the translation table dynamically displays only the dialogue lines corresponding to the chosen NPC.
+- **翻訳エディタ内のNPCフィルタ機能の統合**: NPCフィルタ用の選択ドロップダウンを翻訳エディタタブ内へ配置を変更。フィルタ選択時、該当するNPCのセリフ行のみをテーブルに抽出表示するように改善。
+- **Bulk Clear Selected NPC Translations**: Added a button to clear all translated lines for the currently selected NPC in one click, accompanied by a double-confirmation safety dialog.
+- **選択中NPCの翻訳一括クリア機能**: フィルタで選択しているNPCの翻訳テキストをワンクリックで一括消去して空欄に戻せる機能と、誤消去防止用の確認アラートを追加。
 - **Safe i18n Fallback (Crash Prevention)**: Wrapped the translations object in a JavaScript `Proxy` to dynamically fallback missing localization keys to English equivalents, preventing React rendering crashes (e.g. `TypeError: is not a function` for template key arguments) across all supported UI languages.
 - **多言語表示クラッシュ防止機能 (Proxyフォールバック)**: 新機能追加時に翻訳キーが登録されていない言語（イタリア語など）で発生していた画面の強制終了（TypeError: is not a function）を根本から解決するため、Proxyを用いた安全な英語フォールバック処理を実装。
 - **Russian Translation Support**: Fully localized NPC profiles, editor logs, glossary controls, and alert validations in Russian (ru) locale.
