@@ -1,4 +1,4 @@
-export const TRANSLATIONS: Record<string, any> = {
+const rawTranslations: Record<string, any> = {
   ja: {
     xmlLoaded: (name: string, count: number) => `${name} を読み込みました (${count} 件)`,
     loadingFiles: (count: number) => `${count} 件のファイルを読み込んでいます...`,
@@ -710,6 +710,78 @@ export const TRANSLATIONS: Record<string, any> = {
     minimize: 'Свернуть ✕',
     showLogs: (c: number) => `📜 Показать логи (${c})`,
     empty: 'Журналов пока нет. Действия по переводу будут отображаться здесь в реальном времени.',
+    targetNpcFilterLabel: 'Целевой NPC',
+    allNpcs: 'Все NPC',
+    clearNpcTranslations: 'Очистить перевод для NPC',
+    clearNpcConfirm: (names: string) => `Вы уверены, что хотите очистить все переводы для выбранных NPC [${names}]?`,
+    overwriteNpcConfirm: (names: string) => `Для NPC [${names}] уже существуют переведенные строки. Вы хотите перезаписать их?\n\n・[OK]: Перезаписать все\n・[Отмена]: Переводить только непереведенные`,
+    logNpcClearSuccess: (names: string) => `Переводы для выбранных NPC [${names}] успешно очищены.`,
+    alertNoXmlLoaded: 'Файл XML не загружен.',
+    alertNoNewNpc: 'Новых NPC не обнаружено (все настроены).',
+    confirmNpcDetect: (count: number) => `Обнаружено ${count} новых NPC. Вы хотите использовать ИИ для автоматического создания профилей?`,
+    logNpcProfiling: (count: number) => `Запрос профилирования ИИ для ${count} новых NPC...`,
+    logNpcProfilingProgress: (start: number, end: number, total: number) => `Профилирование NPC: ${start}-${end} из ${total}`,
+    logNpcProfilingSuccess: (count: number) => `Автоматически настроено ${count} профилей тона NPC.`,
+    logLoadFilesFailed: 'Не удалось загрузить некоторые файлы.',
+    logNoItemsToTranslate: 'Нет строк для перевода.',
+    logTranslationStoppedByUser: 'Перевод остановлен пользователем.',
+    logNpcProfileDetail: (name: string, sex: string, first: string, second: string, tone: string) => `NPC [${name}]: Пол='${sex}', 1-е лицо='${first}', 2-е лицо='${second}', Тон='${tone}'`,
+    logApiErrorRetry: (sec: string, count: number, max: number, err: string) => `Временная ошибка API. Повтор через ${sec} сек (${count}/${max}): ${err}`,
+    logNounTranslatingProgress: (start: number, end: number, total: number) => `Перевод имен собственных: ${start}-${end} из ${total}`,
+    logGlossaryAdded: (term: string) => `Термин "${term}" добавлен в глоссарий.`,
+    logGlossaryDeleted: (term: string) => `Термин "${term}" удален из глоссария.`,
+    logNpcProfileSaved: (name: string) => `Профиль тона NPC "${name}" сохранен.`,
+    logNpcProfileDeleted: (name: string) => `Профиль тона NPC "${name}" удален.`,
+    logNpcProfilesImported: (count: number) => `Импортировано ${count} профилей NPC.`,
+    alertApiKeyRequired: 'Пожалуйста, введите API-ключ.',
+    alertFetchModelsFailed: 'Не удалось получить список моделей.',
+    alertBaseUrlRequired: 'Пожалуйста, введите базовый URL.',
+    alertGlossaryParseFailed: 'Не удалось проанализировать JSON-файл.',
+    glossaryTitle: 'Управление Глоссарием',
+    glossarySubTitle: 'Регистрация и управление терминами для приоритетного перевода.',
+    importGlossaryBtn: 'Импорт JSON',
+    exportGlossaryBtn: 'Экспорт JSON',
+    addTermTitle: 'Добавить новый термин',
+    originalLangLabel: 'Оригинал (Английский)',
+    targetLangTranslationLabel: 'Перевод (Целевой язык)',
+    addTermBtn: 'Добавить термин',
+    searchGlossaryPlaceholder: 'Поиск терминов...',
+    noTermsRegistered: 'Нет зарегистрированных терминов.',
+    deleteBtn: 'Удалить',
+    alertNpcAlreadyExists: (name: string) => `NPC "${name}" уже зарегистрирован.`,
+    alertNpcImportInvalidFormat: 'Неверный формат данных. Ожидался массив.',
+    alertNpcImportNoValidData: 'Профили NPC не найдены.',
+    alertNpcImportFailed: (err: string) => `Импорт не удался: ${err}`,
+    npcProfilesTitle: 'Профили и настройки тона NPC',
+    npcProfilesSubTitle: 'Управление профилями тона говорящего. Эти профили автоматически передаются в промпты ИИ.',
+    exportNpcBtn: 'Экспорт JSON',
+    importNpcBtn: 'Импорт JSON',
+    aiAnalyzeNpcBtn: 'Анализировать NPC с ИИ',
+    savedNpcProfilesCount: (count: number) => `Сохраненные профили NPC (${count})`,
+    addNpcTitle: 'Добавить NPC',
+    selectNpcPlaceholder: 'Выберите из обнаруженных в XML NPC',
+    noUnconfiguredNpcs: '(Ненастроенные NPC не обнаружены)',
+    saveNpcProfileBtn: 'Сохранить профиль',
+    deleteNpcProfileBtn: 'Удалить',
+    npcSettingsTitle: 'Настройки NPC',
+    npcNameLabel: 'Имя NPC',
+    npcGenderLabel: 'Пол / Роль',
+    npcGenderMale: 'Мужской (Male)',
+    npcGenderFemale: 'Женский (Female)',
+    npcGenderPlayer: 'Игрок (Player)',
+    npcGenderUnknown: 'Неизвестно (Unknown)',
+    firstPersonLabel: '1-е лицо (например, Я)',
+    secondPersonLabel: '2-е лицо (например, Ты)',
+    toneStyleLabel: 'Особенности тона / окончания',
+    toneStylePlaceholder: 'например, грубый уличный тон, вежливая речь и т.д.',
+    selectNpcOption: '-- Выберите NPC --',
+    orInputNpcManually: 'Или введите имя NPC вручную',
+    openSettingsFormBtn: 'Добавить и открыть редактор',
+    searchNpcPlaceholder: 'Поиск NPC...',
+    noNpcProfilesRegistered: 'Нет зарегистрированных профилей NPC.',
+    selectNpcPrompt: '← Выберите профиль NPC из списка для редактирования или добавьте новый.',
+    editNpcProfileTitle: (name: string) => `Редактировать профиль 🗣️ ${name}`,
+    deleteNpcSettingsBtn: 'Удалить настройки',
   },
   it: {
     xmlLoaded: (name: string, count: number) => `File ${name} caricato (${count} elementi)`,
@@ -780,6 +852,33 @@ export const TRANSLATIONS: Record<string, any> = {
     clear: 'Cancella',
     minimize: 'Riduci ✕',
     showLogs: (c: number) => `📜 Mostra log di esecuzione (${c})`,
-    empty: 'Nessun registro generato. Le attività di traduzione appariranno in tempo reale.',
   }
 };
+
+export const TRANSLATIONS = new Proxy(rawTranslations, {
+  get(target, langProp) {
+    const lang = langProp as string;
+    const base = target[lang] || target['en'];
+    const fallback = target['en'];
+    
+    return new Proxy(base, {
+      get(subTarget, keyProp) {
+        const val = Reflect.get(subTarget, keyProp) ?? Reflect.get(fallback, keyProp);
+        
+        // If the key is expected to be a function on fallback, but it's not defined as a function
+        // on the target language, wrap it with a dummy function that falls back to the English implementation
+        // to completely prevent rendering crashes like "is not a function" errors.
+        if (typeof Reflect.get(fallback, keyProp) === 'function' && typeof val !== 'function') {
+          return (...args: any[]) => {
+            const fallbackFn = Reflect.get(fallback, keyProp);
+            if (typeof fallbackFn === 'function') {
+              return fallbackFn(...args);
+            }
+            return '';
+          };
+        }
+        return val;
+      }
+    });
+  }
+}) as typeof rawTranslations;
