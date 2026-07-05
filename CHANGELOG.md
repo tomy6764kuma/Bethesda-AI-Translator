@@ -6,6 +6,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 形式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に準拠しています。
 
+## [1.0.4] - 2026-07-06
+
+### Added (新規追加)
+- **Safe i18n Fallback (Crash Prevention)**: Wrapped the translations object in a JavaScript `Proxy` to dynamically fallback missing localization keys to English equivalents, preventing React rendering crashes (e.g. `TypeError: is not a function` for template key arguments) across all supported UI languages.
+- **多言語表示クラッシュ防止機能 (Proxyフォールバック)**: 新機能追加時に翻訳キーが登録されていない言語（イタリア語など）で発生していた画面の強制終了（TypeError: is not a function）を根本から解決するため、Proxyを用いた安全な英語フォールバック処理を実装。
+- **Russian Translation Support**: Fully localized NPC profiles, editor logs, glossary controls, and alert validations in Russian (ru) locale.
+- **ロシア語への完全ローカライズ対応**: NPC口調プロファイル管理や用語集、アラート警告などの全UI要素をロシア語に完全対応。
+- **All Locales Synchronized**: Fully synchronized and completed all new NPC settings and glossary translation keys across all supported locales (Korean, Chinese, Spanish, French, German, and Italian).
+- **他言語の翻訳同期の徹底**: 韓国語、中国語、スペイン語、フランス語、ドイツ語、イタリア語についても、追加されたすべての新UIテキストとトーン設定画面の翻訳を適用し、他言語でも母国語で表示されるよう同期。
+
+### Improved (改善)
+- **Target-Language Adaptive NPC Profiling**: Updated the automatic NPC tone detection logic to dynamically adjust the AI's instruction prompt, pronoun suggestions, and parser fallback values to match the user's selected translation target language (e.g. suggesting Japanese pronouns like "私/俺/あなた" when translating to Japanese, or Chinese pronouns like "我/你" when translating to Chinese).
+- **翻訳先言語に連동したNPC自動口調推定**: AIによる口調の自動推定プロンプトと人称の提案・フォールバック値を、選択された「翻訳先言語」に動的に適合するよう改善。
+
+### Fixed (バグ修正)
+- **Tab Component Localization Cleanup**: Relocated all remaining hardcoded alerts, dialog validations, and UI labels (in `NpcProfilesTab`, `GlossaryTab`, `SettingsModal`, and `App.tsx`) to localized translation keys.
+- **UIハードコード文字列のローカライズ漏れ解消**: 用語集やNPCプロファイル管理、環境設定、コンソールログなどで一部残っていた日本語・英語の直接書き込みテキストをすべて多言語キーに統一。
+
 ## [1.0.3] - 2026-07-05
 
 ### Added (新規追加)
