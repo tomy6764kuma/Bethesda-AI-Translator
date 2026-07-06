@@ -60,9 +60,9 @@ jobs:
           gh release upload $tag Bethesda-AI-Translator-Portable.zip --clobber
           
           # 2. Find, rename and upload installer setup.exe, then delete original setup asset
-          $setupExeName = Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -ExpandProperty Name
-          if ($setupExeName) {
-              $origPath = "src-tauri/target/release/bundle/nsis/$setupExeName"
+          Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe | ForEach-Object {
+              $origPath = $_.FullName
+              $origName = $_.Name
               $renamedName = "AutoUpdate-System-DO-NOT-DOWNLOAD-setup.exe"
               
               # Copy to renamed filename and upload
@@ -70,18 +70,18 @@ jobs:
               gh release upload $tag $renamedName --clobber
               
               # Delete the original installer from release draft (wrap in quotes to prevent spacing issues)
-              Write-Host "Attempting to delete original asset: $setupExeName"
-              gh release delete-asset $tag "$setupExeName" -y 2>$null
+              Write-Host "Attempting to delete original asset: $origName"
+              gh release delete-asset $tag "$origName" -y 2>$null
               if ($LASTEXITCODE -ne 0) {
                   Write-Host "Notice: Original asset delete command returned non-zero code. Bypassing..."
               }
           }
           
           # 3. Find and delete the obsolete .msi installer from release draft to clean up list
-          $msiName = Get-ChildItem src-tauri/target/release/bundle/msi/*.msi | Select-Object -ExpandProperty Name
-          if ($msiName) {
-              Write-Host "Attempting to delete obsolete MSI: $msiName"
-              gh release delete-asset $tag "$msiName" -y 2>$null
+          Get-ChildItem src-tauri/target/release/bundle/msi/*.msi | ForEach-Object {
+              $origName = $_.Name
+              Write-Host "Attempting to delete obsolete MSI: $origName"
+              gh release delete-asset $tag "$origName" -y 2>$null
           }
           
           # Always force success exit code to ensure workflow finishes building successfully
