@@ -19,6 +19,9 @@ export class AiFactory {
       case 'lmstudio':
         return new LocalLlmProvider('lmstudio', settings);
 
+      case 'llamacpp':
+        return new LocalLlmProvider('llamacpp', settings);
+
       default:
         throw new Error(`Unsupported AI Provider: ${settings.activeProvider}`);
     }

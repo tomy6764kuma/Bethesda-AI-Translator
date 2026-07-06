@@ -11,7 +11,8 @@ export class GeminiProvider implements AiProvider {
     items: TranslationRequestItem[],
     glossary: GlossaryEntry[],
     npcProfilesText?: string,
-    onLog?: (msg: string) => void
+    onLog?: (msg: string) => void,
+    systemPromptTemplateOverride?: string
   ): Promise<TranslationResponseItem[]> {
     const apiKey = this.settings.gemini.apiKey;
     const model = this.settings.gemini.model;
@@ -25,7 +26,8 @@ export class GeminiProvider implements AiProvider {
       this.settings.systemPromptTemplate || '',
       this.settings.targetLanguage,
       glossaryText,
-      npcProfilesText
+      npcProfilesText,
+      systemPromptTemplateOverride
     );
 
     const userPrompt = `Translate the following JSON list of texts:\n${JSON.stringify(items, null, 2)}`;

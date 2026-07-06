@@ -8,7 +8,10 @@ interface ProperNounExtractorProps {
   onAddGlossaryEntries: (entries: GlossaryEntry[]) => void;
   uiLanguage: string;
   activeProvider: string;
-  onAiTranslateNouns: (nouns: string[]) => Promise<Record<string, string>>;
+  onAiTranslateNouns: (
+    nouns: string[],
+    onPartialResult?: (partial: Record<string, string>) => void
+  ) => Promise<Record<string, string>>;
 }
 
 // Robust and expanded stop words list to eliminate verbs, adjectives, prepositions, contractions, and grammatical noise
@@ -214,7 +217,12 @@ export const ProperNounExtractor: React.FC<ProperNounExtractorProps> = ({
     setIsAiTranslating(true);
     try {
       const nounsList = targets.map((item) => item.original);
-      const results = await onAiTranslateNouns(nounsList);
+      const results = await onAiTranslateNouns(nounsList, (partial) => {
+        setNewTranslation((prev) => ({
+          ...prev,
+          ...partial,
+        }));
+      });
       
       setNewTranslation((prev) => ({
         ...prev,
@@ -251,7 +259,7 @@ export const ProperNounExtractor: React.FC<ProperNounExtractorProps> = ({
   };
 
   return (
-    <div className="w-90 border-l border-neutral-800 bg-neutral-900/60 flex flex-col h-full select-none shrink-0">
+    <div className="w-96 border-l border-neutral-800 bg-neutral-900/60 flex flex-col h-full select-none shrink-0">
       {/* Title */}
       <div className="p-4 border-b border-neutral-800/80">
         <h3 className="font-bold text-sm text-amber-400 font-serif flex items-center gap-1.5">

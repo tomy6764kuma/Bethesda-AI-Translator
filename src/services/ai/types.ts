@@ -18,7 +18,8 @@ export interface AiProvider {
     items: TranslationRequestItem[],
     glossary: GlossaryEntry[],
     npcProfilesText?: string,
-    onLog?: (msg: string) => void
+    onLog?: (msg: string) => void,
+    systemPromptTemplateOverride?: string
   ): Promise<TranslationResponseItem[]>;
   callLlm(prompt: string, onLog?: (msg: string) => void): Promise<string>;
 }

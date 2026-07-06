@@ -6,6 +6,7 @@ interface HeaderProps {
   onOpenFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSaveFile: () => void;
   onStartTranslation: () => void;
+  onStopTranslation: () => void;
   onOpenSettings: () => void;
   activeProvider: AiProviderType;
   onChangeProvider: (provider: AiProviderType) => void;
@@ -21,6 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenFile,
   onSaveFile,
   onStartTranslation,
+  onStopTranslation,
   onOpenSettings,
   activeProvider,
   onChangeProvider,
@@ -102,6 +104,7 @@ export const Header: React.FC<HeaderProps> = ({
             <option value="openai" className="bg-neutral-900 text-neutral-200">OpenAI / Compatible</option>
             <option value="ollama" className="bg-neutral-900 text-neutral-200">Ollama (Local)</option>
             <option value="lmstudio" className="bg-neutral-900 text-neutral-200">LM Studio (Local)</option>
+            <option value="llamacpp" className="bg-neutral-900 text-neutral-200">llama.cpp (Local)</option>
           </select>
         </div>
 
@@ -117,13 +120,13 @@ export const Header: React.FC<HeaderProps> = ({
           </svg>
         </button>
 
-        {/* Batch Translate Button */}
+        {/* Batch Translate / Stop Button */}
         <button
-          onClick={onStartTranslation}
-          disabled={isTranslating || untranslatedCount === 0}
+          onClick={isTranslating ? onStopTranslation : onStartTranslation}
+          disabled={!isTranslating && untranslatedCount === 0}
           className={`px-5 py-2 rounded-xl font-bold text-xs shadow-lg transition flex items-center gap-2 ${
             isTranslating
-              ? 'bg-amber-600/50 text-white cursor-wait'
+              ? 'bg-red-600 hover:bg-red-500 text-white active:scale-95 shadow-red-900/20'
               : untranslatedCount === 0
               ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
               : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 shadow-amber-900/20 active:scale-95'
@@ -135,7 +138,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              {t.translating}
+              {t.stopTranslation}
             </>
           ) : (
             <>
