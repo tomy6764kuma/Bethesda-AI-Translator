@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Artifacts (agent-generated, session-specific)
+implementation_plan.md
+refactoring_plan.md
+task.md
+walkthrough.md
+agents_adjustment_proposal.md
+
+# Agent temporary files
+.agent/.tmp/
+.agent/.cache/
+
+# Tauri build target
+src-tauri/target/
+
+# Agent configs
+AGENTS.md
+GEMINI.md
+CLAUDE.md
+.agent/
