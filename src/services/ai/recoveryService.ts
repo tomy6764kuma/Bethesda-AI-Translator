@@ -234,7 +234,7 @@ Example Output Format:
     const targetLangName = langNames[targetLanguage] || targetLanguage;
 
     let prompt = tpl
-      .replace('{target_lang}', targetLangName)
+      .replace(/{target_lang}/g, targetLangName)
       .replace('{npc_profiles}', npcProfilesText ? `NPC Tone Styles / Character Settings:\n${npcProfilesText}\n` : '')
       .replace('{glossary}', glossaryText ? `Glossary Dictionary:\n${glossaryText}\n` : '');
 

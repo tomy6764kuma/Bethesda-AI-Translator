@@ -33,5 +33,14 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://raw.githubusercontent.com/tomy6764kuma/Bethesda-AI-Translator/main/update.json"
+      ],
+      "pubkey": "YOUR_TAURI_UPDATER_PUBLIC_KEY_PLACEHOLDER"
+    }
   }
 }

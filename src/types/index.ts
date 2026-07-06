@@ -69,6 +69,7 @@ export interface AiSettings {
   uiLanguage: string;
   targetLanguage: string;
   systemPromptTemplate?: string;
+  enableAutoUpdate?: boolean;
 }
 
 export interface LogEntry {

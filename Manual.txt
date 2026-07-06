@@ -1,0 +1,348 @@
+======================================================================
+ Bethesda AI Translator  - 簡易取扱説明書・導入ガイド (Japanese)
+======================================================================
+
+この度は「Bethesda AI Translator」をダウンロードいただきありがとうございます。
+本ツールは、Bethesda社製RPG（Skyrim, Fallout, Starfield）の翻訳用XML（SST）を
+AI（Gemini, OpenAI, またはローカルLLM）の力を借りて高品質に一括翻訳する支援ツールです。
+
+----------------------------------------------------------------------
+ 【1】 動作環境と事前準備
+----------------------------------------------------------------------
+
+本ツールの使用には、以下のいずれかのAIサービス（APIキーまたはローカル環境）が必要です。
+
+1. クラウドAPI（推奨：高速かつ高精度）
+   - Gemini API キー （Google AI Studioから無料で即座に取得可能です）
+   - OpenAI API キー （有料アカウントのAPIキーが必要です）
+
+2. ローカルLLM（完全ローカル・無料）
+   - Ollama （デフォルト接続先: http://localhost:11434）
+   - LM Studio / llama.cpp 等 （接続URLと使用するモデル名を設定してください）
+   ※ローカルLLMを使用する場合、Llama-3やGemma系などの「インストラクション（対話）モデル」をあらかじめロードしておいてください。
+
+■ 翻訳対象のファイル
+   xTranslatorから書き出した「SST XML」ファイルが必要です。
+    ★複数ファイルの一括読み込みに対応：
+     本ツールは、複数のSST XMLファイルを同時に選択して一括で読み込むことができます。
+     読み込まれた複数のXMLは、アプリ内で自動的に1つのテーブルにマージされ、
+     固有名詞の抽出やNPCの特定、自動翻訳を一挙にまとめて行うことができます。
+
+
+★話し方（NPC口調・人称設定）を反映させたい場合
+   SST XMLにNPC情報を出力させるために、カスタム版の xTranslator が必要です。
+   下記URLの「Custom xTranslator Releases」から入手してご使用ください。
+   URL: https://github.com/tomy6764kuma/xTranslator/releases
+
+----------------------------------------------------------------------
+ 【2】 基本的な使い方（ワークフロー）
+----------------------------------------------------------------------
+
+1. xTranslator側の準備
+   xTranslatorで翻訳したいMod（またはゲーム本体）を開き、
+   [ファイル] -> [現在の翻訳をXMLへ書き出し] で SST XML ファイルを保存します。
+   
+
+2. 本ツールの起動と読み込み
+   「Bethesda AI Translator.exe」を実行し、画面左上の【XMLを開く】から
+   SST XMLファイルを読み込みます（Ctrlキーやドラッグ選択で複数同時読み込みも可能です）。
+
+3. 設定の構成
+   画面右上の「歯車アイコン（設定）」を開き、以下を設定します。
+   - 使用する AI エンジン (Gemini, OpenAI, Ollama 等)
+   - APIキー または ローカルLLMの接続URL
+   - 翻訳先言語（日本語など）
+   - ゲーム世界観（TES:ファンタジー、Fallout:終末期、Starfield:SFなど）
+
+4. 自動翻訳の実行
+   画面ヘッダーにある【一括自動翻訳】をクリックすると、AIによる翻訳が始まります。
+   ※翻訳中に止めたい場合は、同じ場所にある【翻訳停止】ボタンで安全に中断できます。
+
+5. 翻訳データの保存とインポート
+   翻訳完了後、【XMLを保存】をクリックします。
+   保存時には「名前を付けて保存」ダイアログが表示されますので、任意の保存場所とファイル名を選択して保存してください。
+   ※複数のXMLを一括読み込みしていた場合は、元のファイルごとに自動で分割され、順番に保存ダイアログが開きます。
+   xTranslatorを開き、[ファイル] -> [XMLから現在の翻訳をインポート] を選択し、保存したXMLを読み込ませることで翻訳が適用されます。
+
+----------------------------------------------------------------------
+ 【3】 設定画面（歯車アイコン）の解説
+----------------------------------------------------------------------
+
+■ モデル一覧の取得 (モデル一覧取得)
+   APIキーを入力した後、各プロバイダの入力欄横にある「モデル一覧取得」ボタンを
+   クリックすると、お使いのアカウントやサーバーから現在利用可能なAIモデルの
+   一覧を自動取得し、プルダウンメニューに反映させることができます。
+
+■ 一般設定での自動アップデート【NEW】
+   - 「自動アップデートを有効にする」のチェックを入れると、起動時に最新バージョンの有無を自動でチェックし、自動で更新を行います。
+   - もし新しいバージョンにバグ等があった場合は、チェックをオフにすることで一時的に以前のバージョンで固定して使用することができます。
+
+■ バッチサイズ (Batch Size)
+   AIへ1回の通信で同時に送信する翻訳テキストの行数です。
+   - クラウドAPI（Gemini/OpenAI）: 
+     通常は `15` 〜 `20` 程度が推奨です。文字数やAPI制限を考慮して処理を行います。
+   - ローカルLLM: 
+     マシンスペックやコンテキスト長（後述）に合わせて `10` 〜 `25` 程度で調整します。
+     大きすぎるとローカルのメモリ上限エラーや翻訳精度の低下を招き、小さすぎると処理が遅くなります。
+
+■ 流量制限 (RPM / TPM)
+   クラウドAPIのエラーを防ぐための制限値です。
+   - RPM: 1分間あたりの最大リクエスト回数
+   - TPM: 1分間あたりの最大処理トークン（文字数）
+   本ツールは設定された制限値に合わせて、自動的に安全な待機時間を計算して実行します。
+   ★有料枠のクラウドAPI（Gemini/OpenAIの有料プランなど）を使用している場合は、
+     ここの制限値を非常に大きな値（RPM: 1000など）に設定することで、
+     制限による待機時間（ウェイト）を一切挟まず、絶え間なく高速に翻訳を行うことができます。
+
+■ カスタムプロンプト (Custom System Prompt)
+   AIに与える役割指示（システムプロンプト）のひな形です。
+   デフォルトの Bethesda RPG 翻訳用のプロンプトをベースに、ユーザー自身で
+   「です・ます調を禁止する」「特定のキャラクター表現を強制する」などの
+   独自の翻訳ルールやトーンスタイルの詳細を追加してカスタマイズできます。
+
+----------------------------------------------------------------------
+ 【4】 主要機能の使いこなすコツ
+----------------------------------------------------------------------
+■ 翻訳エディタ上部での「対象NPCの複数選択・絞り込み表示」 【NEW】
+   「翻訳エディタ」タブのテーブル上部に、新しく「対象NPC」の複数選択ドロップダウンが追加されました。
+   - チェックボックスを使って、任意のキャラクター（例: Pearl と Follows-Chalk）を同時に複数選択し、
+     それらのキャラクターのセリフ行だけをテーブル上にリアルタイムに絞り込んで表示できます。
+   - テーブル左側の「未翻訳」「翻訳済」タブやテキスト検索バーとも掛け合わせ（AND条件）で動作します。
+   
+■ 選択したNPCの翻訳を一括クリア 【NEW】
+   対象NPCを選択している状態のとき、ドロップダウンのすぐ隣に「消しゴム」アイコン（翻訳をクリア）が表示されます。
+   - これをクリックすると、現在選択・表示されているNPCの翻訳（訳文）だけを一括で空欄に戻すことができます。
+     （他のキャラクター의 翻訳データは一切影響を受けずに保護されます）
+	 
+■ 選択したNPCの上書き再翻訳 【NEW】
+   「すでに翻訳済みのXML」を読み込み、キャラクターの性格を設定し直して「もう一度訳し直したい」場合、
+   対象NPCを選択した状態で【一括自動翻訳】を実行します。
+   - 翻訳済みのセリフがある場合、「上書き翻訳しますか？」という確認ダイアログが表示されます。
+   - 【OK】を押すと、すでに翻訳されている行も新しい口調設定に沿ってAIが上書きして再翻訳します。
+   - 【キャンセル】を押すと、すでに翻訳された行は保護され、未翻訳（空欄）の行のみが翻訳されます。
+   
+■ 固有名詞抽出機能 (Proper Noun Extractor) 【推奨】
+   本格的な自動翻訳を始める前に、画面右上の「固有名詞抽出」タブを開くことを強く推奨します。
+   - XML内から頻出する固有名詞（3回以上登場）を自動的にリストアップします。
+   - 専門用語やキャラクター名などを、あらかじめAIで事前翻訳するか手動で対訳を入力し、
+     【用語集に登録】しておくことで、一括翻訳時に用語が完全に統一され、翻訳ブレが防げます。
+   - 【ストップワード（Ignore List）】: 
+     「the」「a」「of」や「NPC」といった、翻訳時に統一する必要のない一般的な英単語を
+     無視リスト（ストップワード）として登録して除外できます。
+     ★ストップワードに追加した単語は、次回以降の名詞抽出を実行した際にもリストから
+       自動的に除外されるようになります。これにより、本当に翻訳を統一すべき重要用語だけを
+       効率的にフィルタリングすることが可能です。
+
+■ NPC口調設定 (NPC Profiles)
+   「NPC口調設定」タブでは、登場するNPCの話し方（一人称、二人称、口調スタイル、性別）を
+   個別に設定・AI自動推定できます。
+   - 例: Pearl の一人称を「私」、二人称を「あなた」、トーンを「丁寧・お嬢様風」に指定。
+   - AIはこれらの定義を完全に遵守してセリフを翻訳するため、「同じキャラなのにセリフごとに
+     オレと言ったり僕と言ったりする」といった翻訳特有の崩れを防ぐことができます。
+
+■ 用語集システム (Glossary)
+   ゲーム内の重要な固有名詞（都市名、アイテム名、組織名など）の対訳を登録する辞書です。
+   固有名詞抽出から登録するほか、「用語集」タブから手動で登録・JSONでの入出力も可能です。
+
+----------------------------------------------------------------------
+ 【5】 ローカルLLM（Ollama等）を使用する際の注意点
+----------------------------------------------------------------------
+
+- 使用するPCのスペック（GPU/VRAM）、モデルの大きさ（パラメータ数）、および
+  推論設定（Temperature等）によって、翻訳の品質や処理速度に大きな差が出ます。
+  8Bクラスのモデルは高速ですが指示の理解力が低く、人称のブレやパースエラーが発生しやすくなります。
+  30B以上の高性能モデルを使用すると高品質な翻訳が得られますが、動作には大容量のVRAM（16GB以上）が必要です。
+- Ollamaなどの軽量モデルを使用する場合、モデルの特性上、JSON出力の最後に「解説」や
+  「独り言」を付け加えてしまうことがありますが、本ツールには強力な「自動ゴミ除去・
+  パース修復エンジン」が搭載されています。自動で正常な翻訳部分だけが切り出されて
+  画面に反映されますので、ご安心ください。
+- パースエラーやAPI一時エラーが発生した場合は、即座に終了せず、
+  指定のディレイを挟んで自動的に最大3回リトライします。
+
+----------------------------------------------------------------------
+ 【6】 作者のローカルLLM（llama.cpp）起動・パラメータ例
+----------------------------------------------------------------------
+
+開発者が高品質な多言語翻訳特化30Bモデルを用いて `llama-server.exe` を
+ローカル起動し、本ツールと連携させている際の起動コマンド例です。
+
+■ 起動コマンド例：
+llama-server.exe -c 8192 -b 2048 -ub 512 -n 4096 --no-mmap --swa-full -cram 0 -ctxcp 0 -t 6 -tb 6 --prio 3 --poll 50 -ngl 99 -mg 0 -fa on -kvo --repack -fit on -fitt 1024 -fitc 4096 -ncmoe 20 --no-mmproj-offload --temp 0.5 --top-k 90 --top-p 0.9 --min-p 0.1 --repeat-last-n 0 -rea auto --jinja -ctk q4_0 -ctv q4_0 --host 127.0.0.1 --port 8080 -np 1 -cb --no-cache-prompt -to 0 --metrics --webui -sps 0.1 -v -lv 3 --log-colors auto --warmup -r "<eos:6124c78e>" -m "Hy-MT2-30B-A3B-GGUF\Hy-MT2-30B-A3B-Q4_K_M.gguf"
+
+（設定の意図：プロンプトキャッシュの効率化、フラッシュアテンションの有効化 `-fa on`、
+  全レイヤーのGPUロード `-ngl 99`、および翻訳の忠実さを高める推理パラメータの調整）
+
+----------------------------------------------------------------------
+ 【7】 トラブルシューティング（よくある質問）
+----------------------------------------------------------------------
+
+Q. 翻訳を開始したのに、画面の「翻訳済」が0件のまま反映されない
+A. ローカルLLM等の出力でJSONのIDが書き換わってしまった場合でも、本ツールは「ID安全復元」を
+   実行して極力反映しますが、モデルが全く異なるフォーマットを返した場合は弾かれます。
+   「設定」から温度（Temperature）を少し下げる（例: 0.1〜0.2）か、より賢いモデル（Llama-3-Instruct等）
+   に変更してみてください。
+
+Q. 翻訳中に「OpenAI API Error (400)」などのエラーが発生して停止する
+A. ローカル接続時、あるいはAPIのプロバイダ設定で一時的なアクセス制限やパラメータエラーが
+   発生している可能性があります。
+   エラー発生時のプロンプト文字列やエラーの詳細は、アプリの下部ログ（Log）エリアに
+   赤文字で詳細が出力されますので、そこから接続先やパラメータに問題がないかご確認ください。
+
+======================================================================
+
+
+======================================================================
+ Bethesda AI Translator  - User Manual & Setup Guide (English)
+======================================================================
+
+Thank you for downloading "Bethesda AI Translator".
+This tool is an advanced, AI-powered localization utility for Bethesda RPGs (Skyrim, Fallout, Starfield) designed to translate SST XML files using Gemini, OpenAI, or local LLMs (Ollama / llama.cpp / LM Studio) while maintaining context, glossaries, and NPC dialogue profiles.
+
+----------------------------------------------------------------------
+ [1] Prerequisites
+----------------------------------------------------------------------
+
+To use this tool, you need access to one of the following AI services (either via cloud API key or local hosting):
+
+1. Cloud APIs (Recommended: Fast & Accurate)
+   - Gemini API Key (Can be obtained for free instantly via Google AI Studio)
+   - OpenAI API Key (Requires a paid account API key)
+
+2. Local LLM (Completely Local & Free)
+   - Ollama (Default host URL: http://localhost:11434)
+   - LM Studio / llama.cpp (Configure host URL and model name in Settings)
+   *Note: If using a local LLM, ensure you have pre-loaded an "Instruction-tuned" model (e.g., Llama-3-Instruct or Gemma-Instruct).*
+
+■ Files to Translate
+   An "SST XML" file exported from xTranslator is required.
+   ★ Batch Import Support:
+     You can select and load multiple SST XML files at once. The tool will automatically
+     merge them into a single editor grid, allowing you to run glossary scans and NPC dialogue
+     profiling across all files simultaneously.
+
+★ To Use NPC Dialogue Profiles (Tone styles & Genders)
+   Your SST XML must contain NPC speaker information. This requires our custom-built xTranslator.
+   Download it from:
+   URL: https://github.com/tomy6764kuma/xTranslator/releases
+
+----------------------------------------------------------------------
+ [2] Basic Workflow
+----------------------------------------------------------------------
+
+1. Prepare xTranslator
+   Open the mod you want to translate in xTranslator, then go to:
+   [File] -> [Export current translation to XML] to save your SST XML file.
+
+2. Launch & Load XML
+   Launch "Bethesda AI Translator.exe" and click [Open XML] at the top-left to select your exported SST XML 
+   (you can select multiple files using Ctrl/Shift click).
+
+3. Configure Settings
+   Click the gear icon (Settings) in the top-right and set up:
+   - Your AI Engine (Gemini, OpenAI, Ollama, etc.)
+   - Your API Key or Local LLM URL
+   - Target Language (e.g., Japanese, English, Chinese)
+   - Game Type (TES: Fantasy, Fallout: Post-Apocalyptic, Starfield: Sci-Fi)
+
+4. Run Auto Translation
+   Click [Auto Translate] in the header to start the translation process.
+   *Note: You can safely interrupt the translation at any time by clicking the [Stop] button in the same place.*
+
+5. Save & Import
+   Once completed, click [Save XML]. A native "Save File" dialog will appear, allowing you to choose exactly where and under what name to save your file.
+   *Note: If you loaded multiple XML files, the tool will automatically separate them back into their original files and prompt you with save dialogs sequentially.
+   Back in xTranslator, select [File] -> [Import translation from XML] and choose the saved file to apply your translations.
+
+----------------------------------------------------------------------
+ [3] Settings Panel Guide
+----------------------------------------------------------------------
+
+■ Model List Fetching (Fetch Button)
+   After entering your API Key, click the "Fetch" button next to the provider fields to query the server and populate the dropdown menu with currently available models.
+
+■ Auto Updates toggling【NEW】
+   - Check "Enable Auto Updates" to automatically check for new releases and apply updates on startup.
+   - If a new version has critical bugs, uncheck this option to temporarily pin the app to the current version.
+
+■ Batch Size (Batch Size)
+   Defines how many lines of dialogue are sent to the AI in a single API call.
+   - Cloud APIs: Typically recommends between 15 and 20. The system automatically structures transactions according to API limits.
+   - Local LLMs: Set between 10 and 25 depending on your computer's specs and context length. Large batches may trigger VRAM limits or reduce accuracy; small batches are safer but slower.
+
+■ Rate Limits (RPM / TPM)
+   Enforces Request limits to prevent errors, especially on free tier cloud APIs.
+   - RPM: Requests Per Minute
+   - TPM: Tokens Per Minute
+   The tool automatically calculates and enforces cooldown periods based on these limits.
+   ★ If you are using a Paid Cloud API tier (Paid Gemini/OpenAI account), you can set these limits to very high values (e.g., RPM: 1000). This allows the tool to run continuous translations at maximum speed without inserting any cooldown delays.
+
+■ Custom System Prompt
+   Allows you to modify the system prompt given to the AI. You can add specific rules, such as "Do not use formal speech" or force particular translation tones for a customized localization style.
+
+----------------------------------------------------------------------
+ [4] Key Features Guide
+----------------------------------------------------------------------
+
+■ Multi-Select NPC Filters & Focused Visibility 【NEW】
+   In the "Translation Editor" tab, there is a "Target NPC" dropdown located in the toolbar.
+   - You can use the checkboxes to select multiple NPCs (e.g. Pearl and Follows-Chalk) and instantly filter the grid to show only their lines of dialogue.
+   - This works seamlessly with the status tabs (Untranslated/Translated) and the text search bar (AND condition).
+   
+■ Clear Selected NPC Translations in Bulk 【NEW】
+   When one or more NPCs are selected, a "Eraser" icon (Clear) will appear next to the dropdown.
+   - Clicking this button clears only the translations (dest) of the selected NPCs, leaving all other characters' translation data untouched.
+   
+■ Overwrite & Re-Translate Filtered NPCs 【NEW】
+   If you load an already-translated XML and want to re-translate a specific NPC's dialogue using a new dialogue profile:
+   - Select the target NPC and click [Auto Translate].
+   - If translated lines exist, a popup will ask whether you want to overwrite them.
+   - Choose [OK] to overwrite and re-translate everything with the new tone profile.
+   - Choose [Cancel] to preserve already-translated lines and only translate empty/untranslated slots.
+   
+■ Proper Noun Extractor (Recommended)
+   Before starting the dialogue translation, go to the "Proper Noun Extractor" tab.
+   - The tool automatically scans the XML and lists proper nouns appearing 3 or more times.
+   - Pre-translate these terms using AI or translate them manually, then click [Add to Glossary] to establish a solid naming standard before the bulk translation.
+   - [Stopwords (Ignore List)]:
+     You can register generic words (e.g., "the", "a", "of", "NPC") as stopwords to filter them out.
+     ★ Words added to the Stopwords list will be automatically excluded from future proper noun scans, allowing you to focus strictly on important lore terms.
+
+■ NPC Dialogue Profiles
+   In the "NPC Dialogue Profiles" tab, you can configure genders, pronouns, tone styles, and first/second-person addresses for each speaker NPC.
+   - Example: For Pearl, set first-person as "私", second-person as "あなた", and tone as "Polite/Noble style".
+   - The AI will strictly respect these guidelines during translation, preventing inconsistencies (e.g., characters shifting from formal to informal speech).
+
+■ Glossary System
+   A dictionary protecting key game terms (locations, items, factions). Custom mappings are automatically injected into the AI prompt. You can import/export these as JSON.
+
+----------------------------------------------------------------------
+ [5] Local LLM Recommendations & Performance Notes
+----------------------------------------------------------------------
+
+- Translation quality and processing speed vary drastically depending on your GPU/VRAM, model size (e.g., 8B vs. 30B), and inference settings (e.g., Temperature). 
+  Standard 8B models are fast but may struggle with formatting and pronoun consistency. 30B+ models yield professional-grade translations but require at VRAM (16GB+).
+- Local models often output conversational noise at the end of JSON responses. The tool features a built-in "Recovery Service" to strip out non-JSON noise, saving only the clean translation data.
+- If a parse error or temporary API failure occurs, the tool will automatically retry up to 3 times with dynamic delay intervals.
+
+----------------------------------------------------------------------
+ [6] Author's Local Optimization & Launch Example (llama.cpp)
+----------------------------------------------------------------------
+
+Below is the developer's optimized configuration for launching "llama-server.exe" locally with a high-quality 30B GGUF multilingual translation model:
+
+■ CLI Command Example:
+llama-server.exe -c 8192 -b 2048 -ub 512 -n 4096 --no-mmap --swa-full -cram 0 -ctxcp 0 -t 6 -tb 6 --prio 3 --poll 50 -ngl 99 -mg 0 -fa on -kvo --repack -fit on -fitt 1024 -fitc 4096 -ncmoe 20 --no-mmproj-offload --temp 0.5 --top-k 90 --top-p 0.9 --min-p 0.1 --repeat-last-n 0 -rea auto --jinja -ctk q4_0 -ctv q4_0 --host 127.0.0.1 --port 8080 -np 1 -cb --no-cache-prompt -to 0 --metrics --webui -sps 0.1 -v -lv 3 --log-colors auto --warmup -r "<eos:6124c78e>" -m "Hy-MT2-30B-A3B-Q4_K_M.gguf"
+
+(Enables Flash Attention `-fa on`, loads all layers to GPU `-ngl 99`, optimizes prompt caching, and dials temp to 0.5 / min-p to 0.1 for maximum translation fidelity.)
+
+----------------------------------------------------------------------
+ [7] Troubleshooting
+----------------------------------------------------------------------
+
+Q. The translation completed, but the table remains blank (0%)
+A. If the local LLM altered the JSON ID formats (e.g., outputting "str_0" instead of the unique ID), our ID Restoration safeguard will attempt to restore it. If the JSON is completely broken, the translation is skipped to prevent line shifts. Try lowering the Temperature (e.g., 0.1 to 0.2) or switching to a more instruction-compliant model.
+
+Q. An "OpenAI API Error (400)" or bad request occurs
+A. Some local servers reject the "response_format" parameter. The tool automatically removes this format constraint when local hostnames are detected. Check the "Log" panel at the bottom of the window for detailed error dumps and raw request bodies.
+
+======================================================================

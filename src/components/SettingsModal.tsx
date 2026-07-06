@@ -314,6 +314,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
               </div>
             </div>
+
+            <div className="pt-2 border-t border-neutral-800/60">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={localSettings.enableAutoUpdate ?? true}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      enableAutoUpdate: e.target.checked,
+                    })
+                  }
+                  className="rounded border-neutral-800 bg-neutral-900 text-amber-500 focus:ring-amber-500/50 cursor-pointer"
+                />
+                <span className="text-neutral-300 font-bold">{t.enableAutoUpdateLabel}</span>
+              </label>
+              <p className="text-[10px] text-neutral-500 mt-1 pl-5">
+                {t.autoUpdateHelp}
+              </p>
+            </div>
           </div>
 
           {/* Gemini Settings */}
