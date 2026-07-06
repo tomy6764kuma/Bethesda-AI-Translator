@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 形式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に準拠しています。
 
+## [1.0.2] - 2026-07-04
+
+### Fixed (バグ修正)
+- **UI Language crash fix**: Resolved a critical TypeError crash that prevented importing XML files when the UI language was set to Russian, Chinese, Spanish, French, German, or Italian due to missing translation keys.
+- **特定UI言語でのインポートクラッシュ修正**: ロシア語、中国語、スペイン語、フランス語、ドイツ語、イタリア語にUI言語を設定している際、一部の翻訳キーが不足していたためにXMLの読み込み（インポート）時に強制終了するバグを修正しました。
+
 ## [1.0.1] - 2026-07-03
 
 ### Improved (改善)
