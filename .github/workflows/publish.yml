@@ -44,18 +44,41 @@ jobs:
           releaseBody: "See the CHANGELOG.md for a list of changes."
           releaseDraft: true
           prerelease: false
-          args: "--no-bundle"
+          includeRelease: false
 
-      - name: Compress Portable Executable
+      - name: Prepare Release Assets
+        if: matrix.platform == 'windows-latest'
         run: |
-          Compress-Archive -Path src-tauri/target/release/bethesda-ai-translator.exe -DestinationPath bethesda-ai-translator-portable.zip
+          # 1. Compress Portable Executable
+          Compress-Archive -Path src-tauri/target/release/bethesda-ai-translator.exe -DestinationPath Bethesda-AI-Translator-Portable.zip
+          
+          # 2. Rename installer to prevent accidental download
+          $setupExe = Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
+          if ($setupExe) {
+              Copy-Item $setupExe.FullName -Destination "AutoUpdate-System-DO-NOT-DOWNLOAD-setup.exe"
+          }
+          
+          # 3. Copy updater archive files
+          $updaterZip = Get-ChildItem src-tauri/target/release/bundle/nsis/*.nsis.zip | Select-Object -First 1
+          $updaterSig = Get-ChildItem src-tauri/target/release/bundle/nsis/*.nsis.zip.sig | Select-Object -First 1
+          if ($updaterZip) {
+              Copy-Item $updaterZip.FullName -Destination $updaterZip.Name
+          }
+          if ($updaterSig) {
+              Copy-Item $updaterSig.FullName -Destination $updaterSig.Name
+          }
         shell: pwsh
 
-      - name: Upload Portable Executable to Release
+      - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
+        if: matrix.platform == 'windows-latest'
         with:
           tag_name: ${{ github.ref_name }}
-          files: bethesda-ai-translator-portable.zip
+          files: |
+            Bethesda-AI-Translator-Portable.zip
+            AutoUpdate-System-DO-NOT-DOWNLOAD-setup.exe
+            *.nsis.zip
+            *.nsis.zip.sig
           draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
