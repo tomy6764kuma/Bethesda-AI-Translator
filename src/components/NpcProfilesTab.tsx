@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { TranslationString, NpcProfile } from '../types';
+import { TRANSLATIONS } from '../i18n/translations';
 
 interface NpcProfilesTabProps {
   items: TranslationString[];
@@ -33,6 +34,7 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
   const [selectedNpcFromDropdown, setSelectedNpcFromDropdown] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const t = TRANSLATIONS[uiLanguage] || TRANSLATIONS['en'];
   const isJa = uiLanguage === 'ja';
 
   // 1. Extract unconfigured valid NPCs from XML items
@@ -110,7 +112,7 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
     // Check if already exists
     const exists = profiles.some(p => p.name.toLowerCase() === finalName.toLowerCase());
     if (exists) {
-      alert(isJa ? `NPC "${finalName}" は既に登録されています。` : `NPC "${finalName}" is already registered.`);
+      alert(t.alertNpcAlreadyExists(finalName));
       handleSelectProfile(finalName);
       setIsAddingNew(false);
       setNewNpcNameInput('');
@@ -158,7 +160,7 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
         const imported = JSON.parse(content);
 
         if (!Array.isArray(imported)) {
-          throw new Error(isJa ? 'データが正しい配列形式ではありません。' : 'Invalid data format. Expected an array.');
+          throw new Error(t.alertNpcImportInvalidFormat);
         }
 
         // Validate format of each item
@@ -180,10 +182,10 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
         if (validProfiles.length > 0) {
           onImportProfiles(validProfiles);
         } else {
-          alert(isJa ? '読み込める有効な設定データが見つかりませんでした。' : 'No valid NPC profile profiles found.');
+          alert(t.alertNpcImportNoValidData);
         }
       } catch (err) {
-        alert(isJa ? `インポート失敗: ${(err as Error).message}` : `Import failed: ${(err as Error).message}`);
+        alert(t.alertNpcImportFailed((err as Error).message));
       } finally {
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
@@ -197,12 +199,10 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
       <div className="flex justify-between items-start flex-wrap gap-4">
         <div>
           <h2 className="text-lg font-bold text-neutral-100 font-serif">
-            {isJa ? 'NPC口調設定 (人物プロファイル) 管理' : 'NPC Profiles & Tone Settings'}
+            {t.npcProfilesTitle}
           </h2>
           <p className="text-xs text-neutral-500 mt-1">
-            {isJa
-              ? '設定されたNPCの口調データを管理します。XMLの自動翻訳や、新規NPCの分析にこれらの設定がプロンプトとして適用されます。'
-              : 'Manage configured NPC tone profiles. These profiles will be dynamically injected into LLM translation prompts.'}
+            {t.npcProfilesSubTitle}
           </p>
         </div>
         
@@ -212,18 +212,18 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
             onClick={handleExport}
             disabled={profiles.length === 0}
             className="px-3 py-2 bg-neutral-800 hover:bg-neutral-700 disabled:opacity-40 disabled:hover:bg-neutral-800 text-neutral-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md active:scale-95"
-            title={isJa ? '設定をJSONファイルとして保存' : 'Export settings to JSON'}
+            title={t.exportNpcBtn}
           >
-            📤 {isJa ? 'JSONのエクスポート' : 'Export JSON'}
+            📤 {t.exportNpcBtn}
           </button>
 
           {/* JSON Import */}
           <button
             onClick={() => fileInputRef.current?.click()}
             className="px-3 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md active:scale-95"
-            title={isJa ? 'JSONファイルから設定を読み込み' : 'Import settings from JSON'}
+            title={t.importNpcBtn}
           >
-            📥 {isJa ? 'JSONのインポート' : 'Import JSON'}
+            📥 {t.importNpcBtn}
           </button>
           <input
             type="file"
@@ -239,7 +239,7 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
             disabled={items.length === 0}
             className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:hover:bg-amber-500 text-neutral-950 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-amber-900/10 active:scale-95"
           >
-            ✨ {isJa ? 'AIでNPCを自動分析' : 'Analyze NPCs with AI'}
+            ✨ {t.aiAnalyzeNpcBtn}
           </button>
         </div>
       </div>
@@ -249,7 +249,7 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
         <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 flex flex-col max-h-[60vh] min-h-[45vh]">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-sm text-neutral-300 font-serif">
-              {isJa ? `登録済みNPC口調 (${profiles.length})` : `Saved NPC Profiles (${profiles.length})`}
+              {t.savedNpcProfilesCount(profiles.length)}
             </h3>
             
             <button
@@ -264,16 +264,16 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
           {isAddingNew && (
             <form onSubmit={handleAddNewProfile} className="bg-neutral-950 border border-neutral-800/80 rounded-xl p-3 mb-3 space-y-2.5 animate-fadeIn">
               <h4 className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
-                {isJa ? 'NPCを口調管理に追加' : 'Add NPC to Manager'}
+                {t.addNpcTitle}
               </h4>
 
               <div>
                 <label className="block text-[9px] text-neutral-500 mb-0.5">
-                  {isJa ? 'XML内の検出NPCから選ぶ' : 'Select from detected XML NPCs'}
+                  {t.selectNpcPlaceholder}
                 </label>
                 {unconfiguredDetectedNpcs.length === 0 ? (
                   <div className="text-[10px] text-neutral-600 italic">
-                    {isJa ? '(未設定の検出NPCはありません)' : '(No unconfigured NPCs detected)'}
+                    {t.noUnconfiguredNpcs}
                   </div>
                 ) : (
                   <select
@@ -284,7 +284,7 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
                     }}
                     className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2 py-1.5 text-xs text-neutral-300 focus:outline-none focus:border-amber-500/50 cursor-pointer"
                   >
-                    <option value="">{isJa ? '-- NPCを選択 --' : '-- Select NPC --'}</option>
+                    <option value="">{t.selectNpcOption}</option>
                     {unconfiguredDetectedNpcs.map(npc => (
                       <option key={npc} value={npc}>{npc}</option>
                     ))}
@@ -294,7 +294,7 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
 
               <div>
                 <label className="block text-[9px] text-neutral-500 mb-0.5">
-                  {isJa ? 'または手動でNPC名を入力' : 'Or input NPC name manually'}
+                  {t.orInputNpcManually}
                 </label>
                 <input
                   type="text"
@@ -313,14 +313,14 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
                 disabled={!newNpcNameInput.trim() && !selectedNpcFromDropdown}
                 className="w-full py-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:hover:bg-amber-500 text-neutral-950 font-bold rounded-lg text-[10px] transition"
               >
-                {isJa ? '設定フォームを開く' : 'Add and Open Editor'}
+                {t.openSettingsFormBtn}
               </button>
             </form>
           )}
 
           <input
             type="text"
-            placeholder={isJa ? 'NPC名で検索...' : 'Search NPCs...'}
+            placeholder={t.searchNpcPlaceholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-neutral-950 border border-neutral-800 text-xs text-neutral-300 px-3 py-2 rounded-xl mb-3 focus:outline-none focus:border-amber-500/50"
@@ -329,7 +329,7 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
           <div className="flex-1 overflow-y-auto divide-y divide-neutral-800/60 pr-1">
             {filteredProfiles.length === 0 ? (
               <div className="text-center py-12 text-neutral-600 text-xs italic">
-                {isJa ? '口調設定が登録されていません。' : 'No NPC profiles registered.'}
+                {t.noNpcProfilesRegistered}
               </div>
             ) : (
               filteredProfiles.map((p) => {
@@ -366,13 +366,13 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
         <div className="md:col-span-2 bg-neutral-900 border border-neutral-800 rounded-2xl p-5">
           {!selectedNpc ? (
             <div className="text-center py-24 text-neutral-500 text-xs font-serif italic">
-              {isJa ? '← 左の一覧から口調を編集したいNPCを選択するか、新規追加してください。' : '← Select an NPC profile from the list to edit, or add a new one.'}
+              {t.selectNpcPrompt}
             </div>
           ) : (
             <form onSubmit={handleSave} className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sm text-amber-400 font-serif">
-                  {isJa ? `🗣️ ${selectedNpc} の設定編集` : `Edit 🗣️ ${selectedNpc} Profile`}
+                  {t.editNpcProfileTitle(selectedNpc)}
                 </h3>
                 {profiles.some((p) => p.name.toLowerCase() === selectedNpc.toLowerCase()) && (
                   <button
@@ -387,7 +387,7 @@ export const NpcProfilesTab: React.FC<NpcProfilesTabProps> = ({
                     }}
                     className="text-[10px] text-red-400 font-bold hover:underline"
                   >
-                    {isJa ? '設定を削除' : 'Delete settings'}
+                    {t.deleteNpcSettingsBtn}
                   </button>
                 )}
               </div>

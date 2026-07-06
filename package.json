@@ -1,6 +1,6 @@
 {
   "name": "bethesda-ai-translator",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "AI-powered translation tool for Bethesda RPGs",
   "type": "module",
   "scripts": {

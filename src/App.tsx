@@ -52,9 +52,23 @@ Example Output Format:
 }`,
 };
 
+const getCleanNpcName = (rawNpc: string | undefined): string => {
+  if (!rawNpc) return '';
+  let cleanName = rawNpc.trim();
+  if (cleanName.startsWith('[')) {
+    const endIdx = cleanName.indexOf(']');
+    if (endIdx !== -1) {
+      cleanName = cleanName.substring(1, endIdx).trim();
+    }
+  }
+  return cleanName;
+};
+
 export const App: React.FC = () => {
   const [filesParams, setFilesParams] = useState<Record<string, XmlParams>>({});
   const [items, setItems] = useState<TranslationString[]>([]);
+  const [availableNpcs, setAvailableNpcs] = useState<string[]>([]);
+  const [selectedNpcFilters, setSelectedNpcFilters] = useState<string[]>([]);
   
   const [glossary, setGlossary] = useState<GlossaryEntry[]>(() => {
     try {
@@ -116,13 +130,11 @@ export const App: React.FC = () => {
     };
     setLogs((prev) => [newLog, ...prev.slice(0, 200)]);
   }, []);
-
-  // Auto detect and generate profiles for new NPCs using LLM
   const handleAutoDetectNpcProfiles = async (targetItems?: TranslationString[], isManualTrigger = false) => {
     const activeItems = targetItems || items;
     if (activeItems.length === 0) {
       if (isManualTrigger) {
-        alert(isJa ? 'XMLデータが読み込まれていません。' : 'No XML data loaded.');
+        alert(t.alertNoXmlLoaded);
       }
       return;
     }
@@ -163,49 +175,70 @@ export const App: React.FC = () => {
 
     if (newNpcNames.length === 0) {
       if (isManualTrigger) {
-        alert(isJa ? '新規NPCは検出されませんでした（すべて登録済みです）。' : 'No new NPCs detected (all are already configured).');
+        alert(t.alertNoNewNpc);
       }
       return;
     }
 
     const isCloud = settings.activeProvider === 'gemini' || settings.activeProvider === 'openai';
     if (isCloud) {
-      const msg = isJa
-        ? `新規NPCが ${newNpcNames.length} 人検出されました。AIを使用して一人称や性格の自動設定（口調推定）を実行しますか？`
-        : `Detected ${newNpcNames.length} new NPCs. Would you like to use AI to automatically generate their character profiles?`;
+      const msg = t.confirmNpcDetect(newNpcNames.length);
       if (!window.confirm(msg)) return;
     }
 
-    addLog('ai', isJa ? `新規NPC (${newNpcNames.length}人) の性格・口調プロファイリングをAIに問い合わせ中...` : `Requesting AI profiling for ${newNpcNames.length} new NPCs...`);
+    addLog('ai', t.logNpcProfiling(newNpcNames.length));
 
     const NPC_BATCH_SIZE = 3;
     const allNewProfiles: NpcProfile[] = [];
+
+    const targetLangCode = settings.targetLanguage;
+    const targetLangName = 
+      targetLangCode === 'ja' ? 'Japanese' :
+      targetLangCode === 'zh' ? 'Chinese' :
+      targetLangCode === 'ko' ? 'Korean' :
+      targetLangCode === 'es' ? 'Spanish' :
+      targetLangCode === 'fr' ? 'French' :
+      targetLangCode === 'de' ? 'German' :
+      targetLangCode === 'ru' ? 'Russian' :
+      targetLangCode === 'it' ? 'Italian' : 'English';
+
+    // 言語ごとの人称例
+    let pronounExamples = '';
+    if (targetLangCode === 'ja') {
+      pronounExamples = 'first-person: 私, 俺, 僕, あたし, わし, second-person: あなた, お前, あんた, 君, 汝, そなた';
+    } else if (targetLangCode === 'zh') {
+      pronounExamples = 'first-person: 我, 鄙人, 本尊, 老子, 在下, second-person: 你, 您, 汝, 阁下';
+    } else if (targetLangCode === 'ko') {
+      pronounExamples = 'first-person: 나, 저, 본인, 소인, second-person: 너, 당신, 그대, 너희';
+    } else {
+      pronounExamples = 'first-person: I, me, mine, second-person: you, your, thou, thee';
+    }
 
     try {
       const provider = AiFactory.createProvider(settings);
       
       for (let i = 0; i < newNpcNames.length; i += NPC_BATCH_SIZE) {
         const batchNames = newNpcNames.slice(i, i + NPC_BATCH_SIZE);
-        addLog('info', isJa ? `NPC プロファイル分析中: ${i + 1}〜${Math.min(i + NPC_BATCH_SIZE, newNpcNames.length)}人目 / 全${newNpcNames.length}人` : `Profiling NPCs: ${i + 1}-${Math.min(i + NPC_BATCH_SIZE, newNpcNames.length)} of ${newNpcNames.length}`);
+        addLog('info', t.logNpcProfilingProgress(i + 1, Math.min(i + NPC_BATCH_SIZE, newNpcNames.length), newNpcNames.length));
 
-        let prompt = `You are an expert game localizer. `;
+        let prompt = `You are an expert game localizer translating the game into ${targetLangName}. `;
         if (settings.gameType === 'tes') {
-          prompt += `This game is in a medieval/high-fantasy setting (similar to The Elder Scrolls / Skyrim). Please output character profiles that fit a fantasy RPG. Select natural Japanese fantasy pronouns (e.g. first-person: 私, 我, 余, わし, あたし, second-person: そなた, 汝, あなた, お前) and tone description fitting feudal, royal, wizardry, or common medieval people. `;
+          prompt += `This game is in a medieval/high-fantasy setting (similar to The Elder Scrolls / Skyrim). Please output character profiles that fit a fantasy RPG. Select natural ${targetLangName} fantasy pronouns (e.g. ${pronounExamples}) and tone description fitting feudal, royal, wizardry, or common medieval people. `;
         } else if (settings.gameType === 'fallout') {
-          prompt += `This game is in a post-apocalyptic, retro-futuristic wasteland setting (similar to Fallout). Please output character profiles that fit a gritty, raw, retro-apocalypse RPG. Select pronouns (e.g. first-person: 俺, アタシ, 僕, 私, second-person: あんた, お前, あなた) and speech tone fitting rough wastelanders, raiders, hardened survivors, or tech-cultists. `;
+          prompt += `This game is in a post-apocalyptic, retro-futuristic wasteland setting (similar to Fallout). Please output character profiles that fit a gritty, raw, retro-apocalypse RPG. Select ${targetLangName} pronouns (e.g. ${pronounExamples}) and speech tone fitting rough wastelanders, raiders, hardened survivors, or tech-cultists. `;
         } else if (settings.gameType === 'starfield') {
           prompt += `This game is in a futuristic space-exploration sci-fi setting (similar to Starfield). Please output character profiles fitting space travelers, futuristic scientists, pilots, or space-colony miners (e.g. professional or modern space sci-fi tone). `;
         } else {
-          prompt += `Analyze the following NPC(s) and their dialogue samples to determine the most natural Japanese localization profile: `;
+          prompt += `Analyze the following NPC(s) and their dialogue samples to determine the most natural ${targetLangName} localization profile: `;
         }
         prompt += `\n`;
-        prompt += `1. "firstPerson": Preferred Japanese first-person pronoun (e.g., 私, 俺, 僕, あたし, わし, or "Player" if the gender is gender-neutral/Player).\n`;
-        prompt += `2. "secondPerson": Preferred Japanese second-person pronoun (e.g., あなた, お前, あんた, 君, 汝, そなた).\n`;
-        prompt += `3. "tone": Character personality/tone description in Japanese (e.g., 冷静沈着, 粗暴な無法者, 知的で丁寧).\n`;
-        prompt += `4. "style": Sentence ending style in Japanese (e.g., です・ます調, だ・ある調, ～だぜ, ～わよ).\n\n`;
+        prompt += `1. "firstPerson": Preferred ${targetLangName} first-person pronoun (e.g., suitable first-person pronoun in ${targetLangName}).\n`;
+        prompt += `2. "secondPerson": Preferred ${targetLangName} second-person pronoun (e.g., suitable second-person pronoun in ${targetLangName}).\n`;
+        prompt += `3. "tone": Character personality/tone description in ${targetLangName} (e.g. brief personality details in ${targetLangName}).\n`;
+        prompt += `4. "style": Sentence ending style or speaking characteristics in ${targetLangName}.\n\n`;
         prompt += `Return ONLY a raw JSON object mapping each NPC name to its profile. Do NOT wrap in markdown block (do NOT use \`\`\`json). Do NOT add any introduction, greeting, or explanation. Make sure to wrap JSON key names (NPC names) in double quotes, even if they contain special characters.\n\n`;
         prompt += `Required JSON Output Format:\n`;
-        prompt += `{\n  "NPC_NAME": {\n    "npc": "NPC_NAME",\n    "sex": "Male|Female|Player|Unknown",\n    "firstPerson": "Japanese first-person pronoun",\n    "secondPerson": "Japanese second-person pronoun",\n    "tone": "Brief character description",\n    "style": "Ending style description"\n  }\n}\n\n`;
+        prompt += `{\n  "NPC_NAME": {\n    "npc": "NPC_NAME",\n    "sex": "Male|Female|Player|Unknown",\n    "firstPerson": "${targetLangName} first-person pronoun",\n    "secondPerson": "${targetLangName} second-person pronoun",\n    "tone": "Brief character description",\n    "style": "Ending style description"\n  }\n}\n\n`;
         prompt += `NPCs to analyze:\n`;
 
         batchNames.forEach(npc => {
@@ -237,8 +270,8 @@ export const App: React.FC = () => {
               allNewProfiles.push({
                 name: profile.npc || npcName,
                 sex: profile.sex || npcSamples[npcName]?.sex || 'Unknown',
-                firstPerson: profile.firstPerson || '私',
-                secondPerson: profile.secondPerson || 'あなた',
+                firstPerson: profile.firstPerson || (targetLangCode === 'ja' ? '私' : 'I'),
+                secondPerson: profile.secondPerson || (targetLangCode === 'ja' ? 'あなた' : 'you'),
                 toneStyle: `${profile.tone || ''} / ${profile.style || ''}`,
               });
             });
@@ -260,7 +293,7 @@ export const App: React.FC = () => {
           const next = prev.filter(p => !allNewProfiles.some(n => n.name.toLowerCase() === p.name.toLowerCase()));
           return [...next, ...allNewProfiles];
         });
-        addLog('success', isJa ? `${allNewProfiles.length} 件のNPC口調プロファイルを自動設定しました。` : `Automatically configured ${allNewProfiles.length} NPC tone profiles.`);
+        addLog('success', t.logNpcProfilingSuccess(allNewProfiles.length));
       }
     } catch (e) {
       addLog('error', `Failed to automatically detect NPC profiles: ${(e as Error).message}`);
@@ -311,15 +344,26 @@ export const App: React.FC = () => {
       setFilesParams(newFilesParams);
       setItems(allItems);
       
+      // Extract available NPCs
+      const npcs = new Set<string>();
+      allItems.forEach((item) => {
+        const cleanName = getCleanNpcName(item.npc);
+        if (cleanName && !cleanName.startsWith('NPC_') && !/^[0-9A-Fa-f]+$/.test(cleanName)) {
+          npcs.add(cleanName);
+        }
+      });
+      setAvailableNpcs(Array.from(npcs).sort());
+      setSelectedNpcFilters([]); // Reset filters on new files
+      
       // Auto-run LLM NPC profiling for all loaded items
       await handleAutoDetectNpcProfiles(allItems);
     } catch (err) {
-      addLog('error', isJa ? '一部のファイルの読み込みに失敗しました。' : 'Failed to load some files.');
+      addLog('error', t.logLoadFilesFailed);
     }
   };
 
   // Handle Save XML
-  const handleSaveFile = () => {
+  const handleSaveFile = async () => {
     if (Object.keys(filesParams).length === 0 || items.length === 0) return;
 
     try {
@@ -333,8 +377,10 @@ export const App: React.FC = () => {
         itemsByFile[fileName].push(item);
       });
 
+      const { invoke } = await import('@tauri-apps/api/core');
+
       // 各ファイルごとにXMLを生成して保存
-      Object.entries(itemsByFile).forEach(([fileName, fileItems]) => {
+      for (const [fileName, fileItems] of Object.entries(itemsByFile)) {
         const fileParams = filesParams[fileName] || {
           addon: fileName.replace('.xml', ''),
           source: 'en',
@@ -343,18 +389,21 @@ export const App: React.FC = () => {
         };
 
         const xmlContent = XmlParser.generate(fileParams, fileItems);
-        const blob = new Blob([xmlContent], { type: 'text/xml;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        
         const baseName = fileName.endsWith('.xml') ? fileName.slice(0, -4) : fileName;
-        link.download = `${baseName}_${settings.targetLanguage}.xml`;
-        link.click();
-        URL.revokeObjectURL(url);
-      });
+        const defaultName = `${baseName}_${settings.targetLanguage}.xml`;
 
-      addLog('success', t.saveAllSuccess || 'All files exported successfully.');
+        try {
+          const savedPath = await invoke<string>('save_xml_file', {
+            defaultName,
+            content: xmlContent
+          });
+          addLog('success', `${t.saveSuccess} (${savedPath})`);
+        } catch (err) {
+          if (err !== 'cancelled') {
+            throw err;
+          }
+        }
+      }
     } catch (err) {
       addLog('error', t.saveFailed((err as Error).message));
     }
@@ -386,6 +435,34 @@ export const App: React.FC = () => {
     );
   };
 
+  // Clear all translations for selected NPCs
+  const handleClearSelectedNpcsTranslations = () => {
+    if (selectedNpcFilters.length === 0) return;
+
+    const selectedNames = selectedNpcFilters.join(', ');
+    const msg = t.clearNpcConfirm
+      ? t.clearNpcConfirm(selectedNames)
+      : `Are you sure you want to clear all translations for the selected NPC(s) [${selectedNames}]?`;
+
+    if (window.confirm(msg)) {
+      const filterSet = new Set(selectedNpcFilters);
+      setItems((prev) =>
+        prev.map((item) => {
+          const cleanName = getCleanNpcName(item.npc);
+          if (filterSet.has(cleanName)) {
+            return {
+              ...item,
+              dest: '',
+              status: 'untranslated',
+            };
+          }
+          return item;
+        })
+      );
+      addLog('info', t.logNpcClearSuccess(selectedNames));
+    }
+  };
+
   // Auto calculate optimal batch size based on RPM / Context Limit
   const getBatchSize = (isLocalLlm: boolean) => {
     if (!settings.autoBatchSize) {
@@ -414,8 +491,43 @@ export const App: React.FC = () => {
 
   // Start Batch Translation (with intelligent cloud RPM/TPM and local Context Limit scheduling)
   const handleStartTranslation = async () => {
-    const untranslated = items.filter((i) => i.status === 'untranslated');
-    if (untranslated.length === 0) {
+    const hasNpcFilters = selectedNpcFilters.length > 0;
+    
+    // 対象のセリフ行をフィルタリング
+    let targetItems = items;
+    if (hasNpcFilters) {
+      const filterSet = new Set(selectedNpcFilters);
+      targetItems = items.filter(item => {
+        const cleanName = getCleanNpcName(item.npc);
+        return filterSet.has(cleanName);
+      });
+    }
+
+    if (targetItems.length === 0) {
+      addLog('info', t.logNoItemsToTranslate);
+      return;
+    }
+
+    // すでに翻訳済みの行をカウント
+    const translatedCount = targetItems.filter(
+      (i) => i.status !== 'untranslated' && i.dest && i.dest.trim().length > 0
+    ).length;
+    let shouldOverwrite = false;
+
+    if (hasNpcFilters && translatedCount > 0) {
+      const selectedNames = selectedNpcFilters.join(', ');
+      const msg = t.overwriteNpcConfirm
+        ? t.overwriteNpcConfirm(selectedNames)
+        : `Translated lines already exist for NPC(s) [${selectedNames}]. Do you want to overwrite and re-translate them?\n\n・[OK]: Re-translate all lines (Overwrite)\n・[Cancel]: Translate untranslated lines only`;
+      
+      shouldOverwrite = window.confirm(msg);
+    }
+
+    const itemsToTranslate = shouldOverwrite
+      ? targetItems
+      : targetItems.filter((i) => i.status === 'untranslated');
+
+    if (itemsToTranslate.length === 0) {
       addLog('info', t.noUntranslated);
       return;
     }
@@ -432,8 +544,8 @@ export const App: React.FC = () => {
       addLog('info', t.autoBatchSizeInfo(calculatedBatchSize));
 
       let batches: TranslationString[][] = [];
-      for (let i = 0; i < untranslated.length; i += calculatedBatchSize) {
-        batches.push(untranslated.slice(i, i + calculatedBatchSize));
+      for (let i = 0; i < itemsToTranslate.length; i += calculatedBatchSize) {
+        batches.push(itemsToTranslate.slice(i, i + calculatedBatchSize));
       }
 
       let requestTimestamps: number[] = [];
@@ -442,7 +554,7 @@ export const App: React.FC = () => {
 
       for (let index = 0; index < batches.length; index++) {
         if (cancelTranslationRef.current) {
-          addLog('info', isJa ? '翻訳処理が手動で停止されました。' : 'Translation stopped by user.');
+          addLog('info', t.logTranslationStoppedByUser);
           break;
         }
         const chunk = batches[index];
@@ -514,7 +626,7 @@ export const App: React.FC = () => {
         );
         const batchNpcProfiles = profiles.filter((p) => batchNpcNames.has(p.name));
         let npcProfilesText = batchNpcProfiles.map(
-          p => `NPC [${p.name}]: 性別/属性='${p.sex || 'Unknown'}', 一人称='${p.firstPerson || '私'}', 二人称='${p.secondPerson || 'あなた'}', 口調スタイル='${p.toneStyle || '特になし'}'`
+          p => t.logNpcProfileDetail(p.name, p.sex || 'Unknown', p.firstPerson || (settings.targetLanguage === 'ja' ? '私' : 'I'), p.secondPerson || (settings.targetLanguage === 'ja' ? 'あなた' : 'you'), p.toneStyle || 'N/A')
         ).join('\n');
 
         let gameWorldPrompt = '';
@@ -559,10 +671,7 @@ export const App: React.FC = () => {
 
             if (isRetryable && retryCount < maxRetries) {
               retryCount++;
-              addLog('warning', isJa
-                ? `一時的なAPIエラーが発生しました。${(retryDelay / 1000).toFixed(1)}秒後に自動リトライします (${retryCount}/${maxRetries}): ${errorMsg}`
-                : `Temporary API error occurred. Retrying in ${(retryDelay / 1000).toFixed(1)}s (${retryCount}/${maxRetries}): ${errorMsg}`
-              );
+              addLog('warning', t.logApiErrorRetry((retryDelay / 1000).toFixed(1), retryCount, maxRetries, errorMsg));
               await new Promise(resolve => setTimeout(resolve, retryDelay));
             } else {
               throw err; // Re-throw fatal or max-retried errors
@@ -835,6 +944,10 @@ Example Output Format:
             onUpdateDest={handleUpdateDest}
             onApplyAiTranslation={handleApplyAiTranslation}
             uiLanguage={settings.uiLanguage}
+            availableNpcs={availableNpcs}
+            selectedNpcFilters={selectedNpcFilters}
+            onChangeNpcFilters={setSelectedNpcFilters}
+            onClearNpcTranslations={handleClearSelectedNpcsTranslations}
           />
         )}
 
@@ -847,11 +960,11 @@ Example Output Format:
                 if (exists) return prev;
                 return [...prev, entry];
               });
-              addLog('success', isJa ? `用語集に "${entry.original}" を追加しました。` : `Added "${entry.original}" to glossary.`);
+              addLog('success', t.logGlossaryAdded(entry.original));
             }}
             onDeleteEntry={(original) => {
               setGlossary((prev) => prev.filter(g => g.original !== original));
-              addLog('info', isJa ? `用語集から "${original}" を削除しました。` : `Deleted "${original}" from glossary.`);
+              addLog('info', t.logGlossaryDeleted(original));
             }}
             onImportGlossary={(entries) => {
               setGlossary((prev) => {
@@ -863,7 +976,7 @@ Example Output Format:
                 });
                 return unique;
               });
-              addLog('success', isJa ? `${entries.length} 件の用語を読み込みました。` : `Imported ${entries.length} glossary terms.`);
+              addLog('success', t.glossaryLoaded('JSON', entries.length));
             }}
             uiLanguage={settings.uiLanguage}
           />
@@ -879,18 +992,18 @@ Example Output Format:
                 next.push(profile);
                 return next;
               });
-              addLog('success', isJa ? `NPC "${profile.name}" の口調プロファイルを保存しました。` : `Saved NPC tone profile for "${profile.name}".`);
+              addLog('success', t.logNpcProfileSaved(profile.name));
             }}
             onDeleteProfile={(name) => {
               setProfiles((prev) => prev.filter((p) => p.name.toLowerCase() !== name.toLowerCase()));
-              addLog('info', isJa ? `NPC "${name}" の口調設定を削除しました。` : `Deleted NPC tone profile for "${name}".`);
+              addLog('info', t.logNpcProfileDeleted(name));
             }}
             onImportProfiles={(importedProfiles) => {
               setProfiles((prev) => {
                 const next = prev.filter(p => !importedProfiles.some(i => i.name.toLowerCase() === p.name.toLowerCase()));
                 return [...next, ...importedProfiles];
               });
-              addLog('success', isJa ? `${importedProfiles.length} 件のNPC口調設定を読み込みました。` : `Imported ${importedProfiles.length} NPC profiles.`);
+              addLog('success', t.logNpcProfilesImported(importedProfiles.length));
             }}
             uiLanguage={settings.uiLanguage}
             onAutoDetectNpcProfiles={() => handleAutoDetectNpcProfiles(undefined, true)}
@@ -910,7 +1023,7 @@ Example Output Format:
                 if (exists) return prev;
                 return [...prev, entry];
               });
-              addLog('success', isJa ? `固有名詞 "${entry.original}" を用語集に追加しました。` : `Added "${entry.original}" to glossary.`);
+              addLog('success', t.logGlossaryAdded(entry.original));
             }}
             onAddGlossaryEntries={(entries) => {
               setGlossary((prev) => {

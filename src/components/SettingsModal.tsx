@@ -47,7 +47,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const fetchGeminiModelsList = async () => {
     const key = localSettings.gemini.apiKey;
     if (!key) {
-      alert(isJa ? 'APIキーを入力してください。' : 'Please enter Gemini API Key.');
+      alert(t.alertApiKeyRequired);
       return;
     }
     setFetchingProvider('gemini');
@@ -66,7 +66,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           }));
         }
       } else {
-        alert(isJa ? 'モデル一覧を取得できませんでした。' : 'Failed to retrieve models.');
+        alert(t.alertFetchModelsFailed);
       }
     } catch (e) {
       alert(`Error fetching Gemini models: ${(e as Error).message}`);
@@ -79,7 +79,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const key = localSettings.openai.apiKey;
     const url = localSettings.openai.baseUrl;
     if (!url) {
-      alert(isJa ? 'Base URLを入力してください。' : 'Please enter Base URL.');
+      alert(t.alertBaseUrlRequired);
       return;
     }
     setFetchingProvider('openai');
@@ -100,7 +100,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           }));
         }
       } else {
-        alert(isJa ? 'モデル一覧を取得できませんでした。' : 'Failed to retrieve models.');
+        alert(t.alertFetchModelsFailed);
       }
     } catch (e) {
       alert(`Error fetching OpenAI models: ${(e as Error).message}`);
@@ -112,7 +112,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const fetchOllamaModelsList = async () => {
     const url = localSettings.ollama.baseUrl;
     if (!url) {
-      alert(isJa ? 'Ollama Base URLを入力してください。' : 'Please enter Ollama Base URL.');
+      alert(t.alertBaseUrlRequired);
       return;
     }
     setFetchingProvider('ollama');
@@ -138,7 +138,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           }));
         }
       } else {
-        alert(isJa ? 'モデル一覧を取得できませんでした。' : 'Failed to retrieve models.');
+        alert(t.alertFetchModelsFailed);
       }
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : (typeof e === 'object' && e !== null && 'message' in e) ? (e as any).message : String(e);
@@ -151,7 +151,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const fetchLmstudioModelsList = async () => {
     const url = localSettings.lmstudio.baseUrl;
     if (!url) {
-      alert(isJa ? 'LM Studio Base URLを入力してください。' : 'Please enter LM Studio Base URL.');
+      alert(t.alertBaseUrlRequired);
       return;
     }
     setFetchingProvider('lmstudio');
@@ -177,7 +177,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           }));
         }
       } else {
-        alert(isJa ? 'モデル一覧を取得できませんでした。' : 'Failed to retrieve models.');
+        alert(t.alertFetchModelsFailed);
       }
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : (typeof e === 'object' && e !== null && 'message' in e) ? (e as any).message : String(e);
@@ -190,7 +190,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const fetchLlamacppModelsList = async () => {
     const url = localSettings.llamacpp.baseUrl;
     if (!url) {
-      alert(isJa ? 'llama.cpp Base URLを入力してください。' : 'Please enter llama.cpp Base URL.');
+      alert(t.alertBaseUrlRequired);
       return;
     }
     setFetchingProvider('llamacpp');
@@ -216,7 +216,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           }));
         }
       } else {
-        alert(isJa ? 'モデル一覧を取得できませんでした。' : 'Failed to retrieve models.');
+        alert(t.alertFetchModelsFailed);
       }
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : (typeof e === 'object' && e !== null && 'message' in e) ? (e as any).message : String(e);
