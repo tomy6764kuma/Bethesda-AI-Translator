@@ -69,12 +69,19 @@ jobs:
               Copy-Item $origPath -Destination $renamedName
               gh release upload $tag $renamedName --clobber
               
-              # Delete the original installer from release draft (ignore failure to prevent build crash)
+              # Delete the original installer from release draft (wrap in quotes to prevent spacing issues)
               Write-Host "Attempting to delete original asset: $setupExeName"
-              gh release delete-asset $tag $setupExeName -y 2>$null
+              gh release delete-asset $tag "$setupExeName" -y 2>$null
               if ($LASTEXITCODE -ne 0) {
-                  Write-Host "Notice: Original asset delete command returned non-zero code. Bypassing to protect workflow completion."
+                  Write-Host "Notice: Original asset delete command returned non-zero code. Bypassing..."
               }
+          }
+          
+          # 3. Find and delete the obsolete .msi installer from release draft to clean up list
+          $msiName = Get-ChildItem src-tauri/target/release/bundle/msi/*.msi | Select-Object -ExpandProperty Name
+          if ($msiName) {
+              Write-Host "Attempting to delete obsolete MSI: $msiName"
+              gh release delete-asset $tag "$msiName" -y 2>$null
           }
           
           # Always force success exit code to ensure workflow finishes building successfully
