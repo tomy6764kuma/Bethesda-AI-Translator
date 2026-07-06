@@ -44,41 +44,34 @@ jobs:
           releaseBody: "See the CHANGELOG.md for a list of changes."
           releaseDraft: true
           prerelease: false
-          includeRelease: false
 
-      - name: Prepare Release Assets
+      - name: Compress Portable Executable
         if: matrix.platform == 'windows-latest'
         run: |
-          # 1. Compress Portable Executable
           Compress-Archive -Path src-tauri/target/release/bethesda-ai-translator.exe -DestinationPath Bethesda-AI-Translator-Portable.zip
-          
-          # 2. Rename installer to prevent accidental download
-          $setupExe = Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
-          if ($setupExe) {
-              Copy-Item $setupExe.FullName -Destination "AutoUpdate-System-DO-NOT-DOWNLOAD-setup.exe"
-          }
-          
-          # 3. Copy updater archive files
-          $updaterZip = Get-ChildItem src-tauri/target/release/bundle/nsis/*.nsis.zip | Select-Object -First 1
-          $updaterSig = Get-ChildItem src-tauri/target/release/bundle/nsis/*.nsis.zip.sig | Select-Object -First 1
-          if ($updaterZip) {
-              Copy-Item $updaterZip.FullName -Destination $updaterZip.Name
-          }
-          if ($updaterSig) {
-              Copy-Item $updaterSig.FullName -Destination $updaterSig.Name
-          }
         shell: pwsh
 
-      - name: Upload Release Assets
-        uses: softprops/action-gh-release@v2
+      - name: Rearrange Release Assets (Upload Portable & Rename Installer)
         if: matrix.platform == 'windows-latest'
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: |
-            Bethesda-AI-Translator-Portable.zip
-            AutoUpdate-System-DO-NOT-DOWNLOAD-setup.exe
-            *.nsis.zip
-            *.nsis.zip.sig
-          draft: true
+        run: |
+          $tag = "${{ github.ref_name }}"
+          
+          # 1. Upload Portable Zip to the release draft
+          gh release upload $tag Bethesda-AI-Translator-Portable.zip --clobber
+          
+          # 2. Find, rename and upload installer setup.exe, then delete original setup asset
+          $setupExeName = Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -ExpandProperty Name
+          if ($setupExeName) {
+              $origPath = "src-tauri/target/release/bundle/nsis/$setupExeName"
+              $renamedName = "AutoUpdate-System-DO-NOT-DOWNLOAD-setup.exe"
+              
+              # Copy to renamed filename and upload
+              Copy-Item $origPath -Destination $renamedName
+              gh release upload $tag $renamedName --clobber
+              
+              # Delete the original installer from release draft to prevent accidental download
+              gh release delete-asset $tag $setupExeName -y
+          }
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
