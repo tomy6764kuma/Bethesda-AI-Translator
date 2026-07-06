@@ -38,6 +38,7 @@ Rules:
 4. Pay attention to speaker NPC name and gender if provided (e.g. Male/Female) to use natural pronouns and tone.
 5. Strictly follow the NPC Tone Styles if specified for a given speaker.
 6. Strictly follow the provided Glossary dictionary for proper nouns.
+7. Even for short texts, single words, names (NPC/location names), or item names, translate them appropriately into {target_lang} instead of leaving them in English, unless they are specified in the Glossary.
 
 {npc_profiles}
 {glossary}
