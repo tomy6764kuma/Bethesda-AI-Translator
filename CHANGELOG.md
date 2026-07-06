@@ -6,6 +6,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 形式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に準拠しています。
 
+## [1.0.5] - 2026-07-06
+
+### Added (新規追加)
+- **Tauri Autoupdater Integration**: Introduced Tauri's native automatic updater to check, download, and apply the latest version from GitHub Releases on startup.
+- **Tauri自動アップデート機能の導入**: アプリ起動時に GitHub Releases から自動で最新バージョンをチェックし、バックグラウンドでダウンロード・適用する自動アップデート機能を導入。
+- **Auto-Update Toggle Setting**: Added an "Enable Auto Updates" checkbox in General Settings, allowing users to temporarily disable updates and pin to a previous version if bugs are encountered.
+- **自動アップデートON/OFFトグル設定**: 重大なバグ発生時などの緊急回避用として、一般設定に自動アップデート機能自体を一時無効化できる設定項目を追加。
+- **Nexus Mods Endorsement Prompt**: Displays a friendly message after a successful auto-update, guiding users to endorse the tool on Nexus Mods.
+- **Nexus Mods 評価動線の追加**: アップデート適用完了時に「💡 ツールが気に入ったらぜひ Nexus Mods でのおすすめ（Endorsement）をお願いします！」という案内を追加し、自動更新に伴うNexus上での評価低下を対策。
+- **Tauri Build Automation (CI/CD)**: Added GitHub Actions workflow (`publish.yml`) to automatically compile Windows executables and create release drafts upon tagging.
+- **自動リリースビルド用 GitHub Actions の追加**: バージョンタグ（`v*`）プッシュ時に、自動的に Windows 用ビルドを作成し、GitHub Releases のリリース下書きへ成果物をアタッチするCI/CDワークフローを追加。
+- **Manual.txt added to project root**: Copied the detailed Japanese/English setup guide (`Manual.txt`) to the repository root for better user visibility on GitHub.
+- **取扱説明書（Manual.txt）をリポジトリルートに配置**: 自動アップデートに伴い同梱説明書が見えなくなる対策として、詳細な日英取扱説明書をプロジェクトルートに複製・配置。
+
+### Fixed (バグ修正)
+- **Curly Braces `{target_lang}` Tag Contamination Fix**: Fixed a bug where `{target_lang}` placeholder was only replaced at its first occurrence due to standard `replace()` behavior, leaving the second occurrence raw in the prompt and confusing the AI into outputting literal `{target_lang}` text (e.g. `{target_lang} Чугунный котел.`). Resolved using global regex replacement.
+- **波括弧 `{target_lang}` タグ混入バグの修正**: 文字列置換が最初の1箇所しか動作しない仕様により、システムプロンプトの後半（ルール7）に `{target_lang}` が生のまま残ってしまい、AI出力に `{target_lang}` が混入していたバグを、正規表現（gフラグ）を用いた全置換に変更して修正。
+
 ## [1.0.4] - 2026-07-06
 
 ### Added (新規追加)

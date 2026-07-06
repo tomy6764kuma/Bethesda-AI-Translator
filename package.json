@@ -1,6 +1,6 @@
 {
   "name": "bethesda-ai-translator",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "AI-powered translation tool for Bethesda RPGs",
   "type": "module",
   "scripts": {
@@ -12,7 +12,7 @@
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-http": "^2.0.0",
-    "@tauri-apps/plugin-updater": "^2.0.0",
+    "@tauri-apps/plugin-updater": "2.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
