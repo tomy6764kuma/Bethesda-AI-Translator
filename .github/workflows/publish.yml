@@ -44,4 +44,18 @@ jobs:
           releaseBody: "See the CHANGELOG.md for a list of changes."
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }}
+          args: "--no-bundle"
+
+      - name: Compress Portable Executable
+        run: |
+          Compress-Archive -Path src-tauri/target/release/bethesda-ai-translator.exe -DestinationPath bethesda-ai-translator-portable.zip
+        shell: pwsh
+
+      - name: Upload Portable Executable to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: bethesda-ai-translator-portable.zip
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
