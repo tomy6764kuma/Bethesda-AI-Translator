@@ -29,9 +29,9 @@ An advanced, AI-powered localization tool for Bethesda RPGs (Skyrim, Fallout, St
 
 ### Installation
 
-1. Download the latest portable `.zip` release from [GitHub Releases](https://github.com/tomy6764kuma/Bethesda-AI-Translator/releases).
-2. Extract the archive.
-3. Launch `Bethesda AI Translator.exe` (no installation required).
+1. Download the latest portable `.zip` release from [GitHub Releases](https://github.com/tomy6764kuma/Bethesda-AI-Translator/releases) or [Nexus Mods](https://www.nexusmods.com/skyrimspecialedition/mods/184249).
+3. Extract the archive.
+4. Launch `Bethesda AI Translator.exe` (no installation required).
 
 ### Basic Workflow
 
@@ -110,7 +110,7 @@ Tauri, React, TypeScript で構築された、Bethesda社製 RPG (Skyrim, Fallou
 
 ### インストール
 
-1. [GitHub Releases](https://github.com/tomy6764kuma/Bethesda-AI-Translator/releases) から最新のポータブル版 `.zip` をダウンロードします。
+1. [GitHub Releases](https://github.com/tomy6764kuma/Bethesda-AI-Translator/releases) か[Nexus Mods](https://www.nexusmods.com/skyrimspecialedition/mods/184249)から最新のポータブル版 `.zip` をダウンロードします。
 2. ダウンロードしたアーカイブを展開します。
 3. `Bethesda AI Translator.exe` を実行します（インストール不要）。
 
