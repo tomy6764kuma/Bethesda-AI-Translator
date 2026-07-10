@@ -23,7 +23,6 @@ fn save_xml_file(default_name: String, content: String) -> Result<String, String
 fn main() {
   tauri::Builder::default()
     .plugin(tauri_plugin_http::init())
-    .plugin(tauri_plugin_updater::Builder::new().build())
     .invoke_handler(tauri::generate_handler![save_xml_file])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

@@ -11,7 +11,6 @@ import { ProperNounExtractor } from './components/ProperNounExtractor';
 import { GlossaryTab } from './components/GlossaryTab';
 import { NpcProfilesTab } from './components/NpcProfilesTab';
 import { TRANSLATIONS } from './i18n/translations';
-import { check } from '@tauri-apps/plugin-updater';
 
 const DEFAULT_SETTINGS: AiSettings = {
   activeProvider: 'gemini',
@@ -51,7 +50,6 @@ Example Output Format:
     {"id": "str_2", "translated": "ドラゴンが襲ってきたぞ！"}
   ]
 }`,
-  enableAutoUpdate: true,
 };
 
 const getCleanNpcName = (rawNpc: string | undefined): string => {
@@ -132,54 +130,6 @@ export const App: React.FC = () => {
     };
     setLogs((prev) => [newLog, ...prev.slice(0, 200)]);
   }, []);
-
-  // Auto Updater Logic
-  useEffect(() => {
-    const checkUpdates = async () => {
-      if (settings.enableAutoUpdate === false) {
-        addLog('info', isJa ? '自動アップデートは無効化されています。' : 'Auto updates are disabled by settings.');
-        return;
-      }
-
-      try {
-        addLog('info', isJa ? '自動アップデートの確認中...' : 'Checking for updates...');
-        const update = await check();
-        if (update) {
-          addLog('warning', isJa 
-            ? `新バージョン v${update.version} が利用可能です。ダウンロードを開始します...` 
-            : `New version v${update.version} is available. Starting download...`
-          );
-
-          // Download and install the update
-          await update.downloadAndInstall();
-          
-          addLog('success', isJa 
-            ? 'アップデートのダウンロードと適用が完了しました！アプリを再起動してください。' 
-            : 'Update downloaded and applied! Please restart the application.'
-          );
-          
-          alert(isJa 
-            ? '自動アップデートが完了しました！\n反映するにはアプリを再起動してください。\n\n💡 ツールが気に入ったらぜひ Nexus Mods での Endorsement（おすすめ）をお願いします！' 
-            : 'Auto update completed!\nRestart the application to apply changes.\n\n💡 If you like this tool, please consider giving it an Endorsement on Nexus Mods!'
-          );
-        } else {
-          addLog('success', isJa ? 'アプリは最新バージョンです。' : 'Application is up to date.');
-        }
-      } catch (err) {
-        addLog('error', isJa 
-          ? `アップデート確認エラー: ${(err as Error).message}` 
-          : `Failed to check for updates: ${(err as Error).message}`
-        );
-      }
-    };
-
-    // Delay checking slightly to avoid blocking startup logs
-    const timer = setTimeout(() => {
-      checkUpdates();
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [settings.enableAutoUpdate]);
 
   const handleAutoDetectNpcProfiles = async (targetItems?: TranslationString[], isManualTrigger = false) => {
     const activeItems = targetItems || items;

@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 形式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に準拠しています。
 
+## [1.0.6] - 2026-07-10
+
+### Removed (削除)
+- **Tauri Autoupdater Integration**: Completely removed Tauri's native automatic updater, related general settings UI, and Nexus Mods endorsement prompt, in compliance with Nexus Mods policies.
+- **Tauri自動アップデート機能の削除**: Nexus Modsのポリシーに準拠するため、Tauriの自動アップデート機能、一般設定の更新トグルUI、およびNexus Mods評価動線のポップアップを完全に削除。
+
 ## [1.0.5] - 2026-07-06
 
 ### Added (新規追加)
