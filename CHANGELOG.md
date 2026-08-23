@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 形式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に準拠しています。
 
+## [1.0.7] - 2026-08-23
+
+### Added (新規追加)
+- **New Target Languages (Ukrainian, Portuguese - Brazil, Polish, Thai)**: Added 4 new languages to the Translation Target Language options, fully integrated with AI system prompts and proper noun translation pipelines.
+  - 🇺🇦 **Ukrainian (`uk`)**: Accurate tone & grammatical gender inflection based on NPC profiles.
+  - 🇧🇷 **Portuguese - Brazil (`pt-BR`)**: Tailored dialogue translations with speaker-gender agreement.
+  - 🇵🇱 **Polish (`pl`)**: Full gender-aware past verb and adjective inflections.
+  - 🇹🇭 **Thai (`th`)**: First-person pronouns and polite sentence-ending particles aligned with character settings.
+- **翻訳先言語の拡充（ウクライナ語・ポルトガル語(ブラジル)・ポーランド語・タイ語）**: 翻訳先言語（Target Language）に新たに4言語を追加。AIシステムプロンプトおよび固有名詞自動翻訳と連携。
+  - 🇺🇦 **ウクライナ語 (`uk`)**: NPCの性別に応じた過去形動詞・形容詞の語尾変化に対応。
+  - 🇧🇷 **ポルトガル語 (ブラジル) (`pt-BR`)**: 話者の性別に合わせた形容詞・挨拶表現に対応。
+  - 🇵🇱 **ポーランド語 (`pl`)**: 話者・対象の性別による厳密な動詞・形容詞の活用に対応。
+  - 🇹🇭 **タイ語 (`th`)**: 性別に応じた一人称や丁寧な文末詞（ครับ/ค่ะ）に対応。
+    
 ## [1.0.6] - 2026-07-10
 
 ### Removed (削除)
