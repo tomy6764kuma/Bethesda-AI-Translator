@@ -768,6 +768,10 @@ Example Output Format:
         de: 'German',
         ru: 'Russian',
         it: 'Italian',
+        uk: 'Ukrainian',
+        'pt-BR': 'Portuguese (Brazil)',
+        pl: 'Polish',
+        th: 'Thai',
       };
       const targetLangName = langNames[settings.targetLanguage] || settings.targetLanguage;
       const formattedNounPrompt = NOUN_TRANSLATION_PROMPT.replace(/{target_lang}/g, targetLangName);

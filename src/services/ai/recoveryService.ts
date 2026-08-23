@@ -230,6 +230,10 @@ Example Output Format:
       de: 'German',
       ru: 'Russian',
       it: 'Italian',
+      uk: 'Ukrainian',
+      'pt-BR': 'Portuguese (Brazil)',
+      pl: 'Polish',
+      th: 'Thai',
     };
     const targetLangName = langNames[targetLanguage] || targetLanguage;
 

@@ -295,6 +295,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <option value="de">Deutsch (German)</option>
                   <option value="ru">Русский (Russian)</option>
                   <option value="it">Italiano (Italian)</option>
+                  <option value="uk">Українська (Ukrainian)</option>
+                  <option value="pt-BR">Português do Brasil (Portuguese - Brazil)</option>
+                  <option value="pl">Polski (Polish)</option>
+                  <option value="th">ไทย (Thai)</option>
                 </select>
               </div>
             </div>
