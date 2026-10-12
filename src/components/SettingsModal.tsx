@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
-import { AiSettings } from '../types';
+import { AiSettings, TranslationCategory } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
+import { RecoveryService } from '../services/ai/recoveryService';
 
 const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
 const safeTauriFetch = isTauri ? tauriFetch : window.fetch;
@@ -28,6 +29,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [lmstudioModels, setLmstudioModels] = useState<string[]>([]);
   const [llamacppModels, setLlamacppModels] = useState<string[]>([]);
   const [fetchingProvider, setFetchingProvider] = useState<string | null>(null);
+  const [promptTab, setPromptTab] = useState<TranslationCategory>('protagonist');
 
   useEffect(() => {
     setLocalSettings(settings);
@@ -666,7 +668,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* Custom Prompt Settings */}
+          {/* Custom Prompt Settings (3-Category Prompt Configuration) */}
           <div className="p-4 bg-neutral-950 rounded-xl border border-neutral-800/80 space-y-3">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-amber-500 flex items-center gap-2 text-sm">
@@ -674,49 +676,99 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </h3>
               <button
                 onClick={() => {
-                  const defaultPrompt = `You are an expert game localizer specializing in Bethesda RPGs (Skyrim, Fallout, Starfield).
-Translate the provided English game texts into natural, high-quality {target_lang}.
-
-Rules:
-1. Return strictly a JSON array of objects. Each object must have keys "id" and "translated".
-2. Do not alter placeholders, code tags, or format strings (e.g. %s, <br>, [EDID]).
-3. Do not translate or modify contents inside curly braces (e.g., {sigh}, {angry}, {yawn}). These are acting/voice directions and must remain exactly as they are in English inside the translated text.
-4. Pay attention to speaker NPC name and gender if provided (e.g. Male/Female) to use natural pronouns and tone.
-5. Strictly follow the NPC Tone Styles if specified for a given speaker.
-6. Strictly follow the provided Glossary dictionary for proper nouns.
-
-{npc_profiles}
-{glossary}
-Example Output Format:
-[
-  {"id": "str_1", "translated": "こんにちは。"},
-  {"id": "str_2", "translated": "ドラゴンが襲ってきたぞ！"}
-]`;
-                  setLocalSettings(prev => ({
-                    ...prev,
-                    systemPromptTemplate: defaultPrompt
-                  }));
+                  if (promptTab === 'protagonist') {
+                    setLocalSettings(prev => ({
+                      ...prev,
+                      promptProtagonist: RecoveryService.DEFAULT_PROMPT_PROTAGONIST
+                    }));
+                  } else if (promptTab === 'dialogue') {
+                    setLocalSettings(prev => ({
+                      ...prev,
+                      promptDialogue: RecoveryService.DEFAULT_PROMPT_DIALOGUE
+                    }));
+                  } else {
+                    setLocalSettings(prev => ({
+                      ...prev,
+                      promptGeneral: RecoveryService.DEFAULT_PROMPT_GENERAL
+                    }));
+                  }
                 }}
                 className="px-2 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-[10px] rounded border border-neutral-700 transition"
               >
                 {t.resetToDefaultBtn}
               </button>
             </div>
+
+            {/* Prompt Category Tabs */}
+            <div className="flex space-x-1 bg-neutral-900/80 p-1 rounded-lg border border-neutral-800 text-xs">
+              <button
+                type="button"
+                onClick={() => setPromptTab('protagonist')}
+                className={`flex-1 py-1.5 px-2 rounded-md font-medium transition text-[11px] flex items-center justify-center gap-1.5 ${
+                  promptTab === 'protagonist'
+                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-sm'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50'
+                }`}
+              >
+                <span>👤</span>
+                <span>{t.promptTabProtagonist}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPromptTab('dialogue')}
+                className={`flex-1 py-1.5 px-2 rounded-md font-medium transition text-[11px] flex items-center justify-center gap-1.5 ${
+                  promptTab === 'dialogue'
+                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-sm'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50'
+                }`}
+              >
+                <span>💬</span>
+                <span>{t.promptTabDialogue}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPromptTab('general')}
+                className={`flex-1 py-1.5 px-2 rounded-md font-medium transition text-[11px] flex items-center justify-center gap-1.5 ${
+                  promptTab === 'general'
+                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-sm'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50'
+                }`}
+              >
+                <span>📜</span>
+                <span>{t.promptTabGeneral}</span>
+              </button>
+            </div>
+
             <div>
-              <p className="text-neutral-500 text-[10px] mb-2 leading-relaxed whitespace-pre-line">
-                {t.customPromptHelp}
+              <p className="text-neutral-400 text-[10px] mb-2 leading-relaxed">
+                {promptTab === 'protagonist' && t.promptProtagonistHelp}
+                {promptTab === 'dialogue' && t.promptDialogueHelp}
+                {promptTab === 'general' && t.promptGeneralHelp}
               </p>
               <textarea
-                value={localSettings.systemPromptTemplate || ''}
-                onChange={(e) =>
-                  setLocalSettings({
-                    ...localSettings,
-                    systemPromptTemplate: e.target.value,
-                  })
+                value={
+                  promptTab === 'protagonist'
+                    ? (localSettings.promptProtagonist ?? RecoveryService.DEFAULT_PROMPT_PROTAGONIST)
+                    : promptTab === 'dialogue'
+                    ? (localSettings.promptDialogue ?? RecoveryService.DEFAULT_PROMPT_DIALOGUE)
+                    : (localSettings.promptGeneral ?? RecoveryService.DEFAULT_PROMPT_GENERAL)
                 }
-                rows={12}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (promptTab === 'protagonist') {
+                    setLocalSettings(prev => ({ ...prev, promptProtagonist: val }));
+                  } else if (promptTab === 'dialogue') {
+                    setLocalSettings(prev => ({ ...prev, promptDialogue: val }));
+                  } else {
+                    setLocalSettings(prev => ({ ...prev, promptGeneral: val }));
+                  }
+                }}
+                rows={11}
                 className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-neutral-200 focus:outline-none focus:border-amber-500/50 font-mono text-[10px] leading-normal"
               />
+              <p className="text-neutral-500 text-[9px] mt-1.5 leading-relaxed whitespace-pre-line">
+                {t.customPromptHelp}
+              </p>
             </div>
           </div>
         </div>

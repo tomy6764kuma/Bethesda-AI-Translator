@@ -69,7 +69,12 @@ export interface AiSettings {
   uiLanguage: string;
   targetLanguage: string;
   systemPromptTemplate?: string;
+  promptProtagonist?: string; // Prompt for protagonist's own lines / choices
+  promptDialogue?: string; // Prompt for dialogue addressed to the protagonist (NPCs)
+  promptGeneral?: string; // Prompt for everything else (books, items, UI, descriptions)
 }
+
+export type TranslationCategory = 'protagonist' | 'dialogue' | 'general';
 
 export interface LogEntry {
   id: string;

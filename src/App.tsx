@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { TranslationString, XmlParams, GlossaryEntry, NpcProfile, AiSettings, LogEntry, AiProviderType, GameType } from './types';
+import { TranslationString, XmlParams, GlossaryEntry, NpcProfile, AiSettings, LogEntry, AiProviderType, GameType, TranslationCategory } from './types';
 import { XmlParser } from './services/xmlParser';
 import { GlossaryService } from './services/glossaryService';
 import { AiFactory } from './services/ai/aiFactory';
+import { RecoveryService } from './services/ai/recoveryService';
 import { Header } from './components/Header';
 import { TranslationTable } from './components/TranslationTable';
 import { SettingsModal } from './components/SettingsModal';
@@ -29,27 +30,39 @@ const DEFAULT_SETTINGS: AiSettings = {
   contextLimit: 4096,
   uiLanguage: 'en',
   targetLanguage: 'en',
-  systemPromptTemplate: `You are an expert game localizer specializing in Bethesda RPGs (Skyrim, Fallout, Starfield).
-Translate the provided English game texts into natural, high-quality {target_lang}.
+  systemPromptTemplate: RecoveryService.DEFAULT_PROMPT_TEMPLATE,
+  promptProtagonist: RecoveryService.DEFAULT_PROMPT_PROTAGONIST,
+  promptDialogue: RecoveryService.DEFAULT_PROMPT_DIALOGUE,
+  promptGeneral: RecoveryService.DEFAULT_PROMPT_GENERAL,
+};
 
-Rules:
-1. Return strictly a JSON object containing a "translations" array. Each object in the array must have keys "id" and "translated".
-2. Do not alter placeholders, code tags, or format strings (e.g. %s, <br>, [EDID]).
-3. Do not translate or modify contents inside curly braces (e.g., {sigh}, {angry}, {yawn}). These are acting/voice directions and must remain exactly as they are in English inside the translated text.
-4. Pay attention to speaker NPC name and gender if provided (e.g. Male/Female) to use natural pronouns and tone.
-5. Strictly follow the NPC Tone Styles if specified for a given speaker.
-6. Strictly follow the provided Glossary dictionary for proper nouns.
-7. Even for short texts, single words, names (NPC/location names), or item names, translate them appropriately into {target_lang} instead of leaving them in English, unless they are specified in the Glossary.
+export const getItemCategory = (item: TranslationString): TranslationCategory => {
+  const rec = item.rec?.toUpperCase() || '';
+  const npc = item.npc?.toLowerCase() || '';
+  const edid = item.edid?.toLowerCase() || '';
 
-{npc_profiles}
-{glossary}
-Example Output Format:
-{
-  "translations": [
-    {"id": "str_1", "translated": "こんにちは。"},
-    {"id": "str_2", "translated": "ドラゴンが襲ってきたぞ！"}
-  ]
-}`,
+  // 1. 主人公（プレイヤー）自身のセリフ / 選択肢
+  // - INFO:RNAM (Response Topic / Player dialogue choices in Skyrim/Fallout)
+  // - 話者が Player, PlayerRef, 00000007 (Fallout 4 主人公ボイスなど)
+  if (
+    rec === 'INFO:RNAM' ||
+    npc.includes('player') ||
+    npc.includes('00000007') ||
+    edid.startsWith('player')
+  ) {
+    return 'protagonist';
+  }
+
+  // 2. 主人公に向けられたセリフ (NPC対話ダイアログ)
+  // - INFO:NAM1 (NPCセリフ本文)
+  // - DIAL: 関連や NPC話者が設定されているレコード
+  if (rec === 'INFO:NAM1' || rec.startsWith('DIAL') || Boolean(item.npc)) {
+    return 'dialogue';
+  }
+
+  // 3. それ以外のテキスト (書籍、アイテム名、説明文、システム文、クエスト目標等)
+  // - BOOK, DESC, FULL, MESG, QUST 等
+  return 'general';
 };
 
 const getCleanNpcName = (rawNpc: string | undefined): string => {
@@ -544,177 +557,236 @@ export const App: React.FC = () => {
 
       addLog('info', t.autoBatchSizeInfo(calculatedBatchSize));
 
-      let batches: TranslationString[][] = [];
-      for (let i = 0; i < itemsToTranslate.length; i += calculatedBatchSize) {
-        batches.push(itemsToTranslate.slice(i, i + calculatedBatchSize));
+      // 3-Category Grouping: Protagonist, Dialogue (NPCs), General (Books/Items/System)
+      const categorizedItems: Record<TranslationCategory, TranslationString[]> = {
+        protagonist: [],
+        dialogue: [],
+        general: [],
+      };
+
+      itemsToTranslate.forEach((item) => {
+        const cat = getItemCategory(item);
+        categorizedItems[cat].push(item);
+      });
+
+      const categoryQueue: Array<{
+        category: TranslationCategory;
+        categoryLabel: string;
+        items: TranslationString[];
+        template: string;
+        batches: TranslationString[][];
+      }> = [];
+
+      const categoriesOrder: TranslationCategory[] = ['protagonist', 'dialogue', 'general'];
+
+      for (const cat of categoriesOrder) {
+        const catItems = categorizedItems[cat];
+        if (catItems.length === 0) continue;
+
+        const label =
+          cat === 'protagonist'
+            ? t.categoryProtagonist
+            : cat === 'dialogue'
+            ? t.categoryDialogue
+            : t.categoryGeneral;
+
+        const template =
+          cat === 'protagonist'
+            ? (settings.promptProtagonist || RecoveryService.DEFAULT_PROMPT_PROTAGONIST)
+            : cat === 'dialogue'
+            ? (settings.promptDialogue || RecoveryService.DEFAULT_PROMPT_DIALOGUE)
+            : (settings.promptGeneral || RecoveryService.DEFAULT_PROMPT_GENERAL);
+
+        const batches: TranslationString[][] = [];
+        for (let i = 0; i < catItems.length; i += calculatedBatchSize) {
+          batches.push(catItems.slice(i, i + calculatedBatchSize));
+        }
+
+        categoryQueue.push({
+          category: cat,
+          categoryLabel: label,
+          items: catItems,
+          template,
+          batches,
+        });
       }
+
+      const totalBatches = categoryQueue.reduce((sum, q) => sum + q.batches.length, 0);
+      let currentBatchNumber = 0;
 
       let requestTimestamps: number[] = [];
       let tokenWindowTokens: number[] = [];
       let tokenWindowTimestamps: number[] = [];
 
-      for (let index = 0; index < batches.length; index++) {
-        if (cancelTranslationRef.current) {
-          addLog('info', t.logTranslationStoppedByUser);
-          break;
-        }
-        const chunk = batches[index];
-        addLog('info', t.translatingBatch(index + 1, batches.length));
+      for (const queueItem of categoryQueue) {
+        if (cancelTranslationRef.current) break;
 
-        const batchTextLength = chunk.reduce((sum, item) => sum + item.source.length, 0);
+        const { category, categoryLabel, template, batches } = queueItem;
 
-        if (!isLocalLlm) {
-          const now = Date.now();
+        for (let bIdx = 0; bIdx < batches.length; bIdx++) {
+          if (cancelTranslationRef.current) {
+            addLog('info', t.logTranslationStoppedByUser);
+            break;
+          }
+          currentBatchNumber++;
+          const chunk = batches[bIdx];
+          addLog('info', t.translatingCategoryBatch(categoryLabel, bIdx + 1, batches.length));
 
-          // RPM Check
-          requestTimestamps = requestTimestamps.filter(ts => now - ts < 60000);
-          if (requestTimestamps.length >= settings.rpm) {
-            const oldestRequest = requestTimestamps[0];
-            const waitTime = 60000 - (now - oldestRequest);
-            if (waitTime > 0) {
-              addLog('warning', t.batchWait(waitTime / 1000));
+          const batchTextLength = chunk.reduce((sum, item) => sum + item.source.length, 0);
+
+          if (!isLocalLlm) {
+            const now = Date.now();
+
+            // RPM Check
+            requestTimestamps = requestTimestamps.filter(ts => now - ts < 60000);
+            if (requestTimestamps.length >= settings.rpm) {
+              const oldestRequest = requestTimestamps[0];
+              const waitTime = 60000 - (now - oldestRequest);
+              if (waitTime > 0) {
+                addLog('warning', t.batchWait(waitTime / 1000));
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+              }
+            }
+
+            // TPM Check
+            const cleanNow = Date.now();
+            tokenWindowTimestamps = tokenWindowTimestamps.filter((ts, idx) => {
+              const isValid = cleanNow - ts < 60000;
+              if (!isValid) {
+                tokenWindowTokens.splice(idx, 1);
+              }
+              return isValid;
+            });
+
+            const currentUsedTokens = tokenWindowTokens.reduce((sum, val) => sum + val, 0);
+            if (currentUsedTokens + batchTextLength > settings.tpm) {
+              const waitTime = 30000;
+              addLog('warning', t.tpmWait(waitTime / 1000));
               await new Promise(resolve => setTimeout(resolve, waitTime));
             }
+
+            requestTimestamps.push(Date.now());
+            tokenWindowTimestamps.push(Date.now());
+            tokenWindowTokens.push(batchTextLength);
           }
 
-          // TPM Check
-          const cleanNow = Date.now();
-          tokenWindowTimestamps = tokenWindowTimestamps.filter((ts, idx) => {
-            const isValid = cleanNow - ts < 60000;
-            if (!isValid) {
-              tokenWindowTokens.splice(idx, 1);
+          // Prepare request items with simplified sequential IDs to prevent local LLM ID truncation/reset bugs
+          const requestItems = chunk.map((c, idx) => ({
+            id: String(idx),
+            source: c.source,
+            npc: c.npc,
+            sex: c.sex,
+          }));
+
+          const relevantGlossary = GlossaryService.filterRelevantEntries(
+            chunk.map((c) => c.source),
+            glossary
+          );
+
+          const batchNpcNames = new Set(
+            chunk.map((c) => {
+              if (!c.npc) return '';
+              let cleanName = c.npc.trim();
+              if (cleanName.startsWith('[')) {
+                const endIdx = cleanName.indexOf(']');
+                if (endIdx !== -1) {
+                  cleanName = cleanName.substring(1, endIdx).trim();
+                }
+              }
+              return cleanName;
+            }).filter(Boolean)
+          );
+          const batchNpcProfiles = profiles.filter((p) => batchNpcNames.has(p.name));
+          let npcProfilesText = batchNpcProfiles.map(
+            p => t.logNpcProfileDetail(p.name, p.sex || 'Unknown', p.firstPerson || (settings.targetLanguage === 'ja' ? '私' : 'I'), p.secondPerson || (settings.targetLanguage === 'ja' ? 'あなた' : 'you'), p.toneStyle || 'N/A')
+          ).join('\n');
+
+          let gameWorldPrompt = '';
+          if (settings.gameType === 'tes') {
+            gameWorldPrompt = `[Game World Setting]: High-Fantasy RPG (medieval theme like The Elder Scrolls/Skyrim). Translate all dialogues using appropriate fantasy phrasing, royal/feudal honorifics, and period-accurate language styles.\n`;
+          } else if (settings.gameType === 'fallout') {
+            gameWorldPrompt = `[Game World Setting]: Post-Apocalyptic Retro-Futuristic Wasteland (gritty survival theme like Fallout). Translate dialogues in a raw, casual, slang-rich, or hardened survivors' style.\n`;
+          } else if (settings.gameType === 'starfield') {
+            gameWorldPrompt = `[Game World Setting]: Space Exploration Sci-Fi (spaceflight sci-fi theme like Starfield). Translate dialogues using futuristic, technical, pilot, or miner terminology in a modern tone.\n`;
+          }
+
+          const combinedPromptText = gameWorldPrompt + npcProfilesText;
+
+          // Request Translation with dynamic automatic retry for temporary API errors
+          let results;
+          let retryCount = 0;
+          const maxRetries = 3;
+          const retryDelay = Math.max(7000, Math.ceil(75000 / settings.rpm)); // Dynamic delay based on RPM
+
+          while (true) {
+            try {
+              results = await provider.translateBatch(
+                requestItems,
+                relevantGlossary,
+                combinedPromptText || undefined,
+                (msg) => addLog('ai', msg),
+                template
+              );
+              break; // Success! Exit retry loop
+            } catch (err) {
+              const errorMsg = (err as Error).message;
+              // Catch typical transient / recoverable errors
+              const isRetryable =
+                errorMsg.includes('503') ||
+                errorMsg.includes('500') ||
+                errorMsg.includes('UNAVAILABLE') ||
+                errorMsg.includes('INTERNAL') ||
+                errorMsg.includes('timeout') ||
+                errorMsg.includes('rate limit') ||
+                errorMsg.includes('429') ||
+                errorMsg.includes('Failed to parse') ||
+                errorMsg.includes('JSON');
+
+              if (isRetryable && retryCount < maxRetries) {
+                retryCount++;
+                addLog('warning', t.logApiErrorRetry((retryDelay / 1000).toFixed(1), retryCount, maxRetries, errorMsg));
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+              } else {
+                throw err; // Re-throw fatal or max-retried errors
+              }
             }
-            return isValid;
+          }
+
+          // Safe ID Restoration: Restore simplified sequential IDs back to their original unique IDs.
+          results.forEach((res) => {
+            const idx = parseInt(res.id, 10);
+            if (!isNaN(idx) && idx >= 0 && idx < chunk.length) {
+              res.id = chunk[idx].id;
+            } else {
+              // Fallback for LLMs returning e.g. "str_0" or similar
+              const match = res.id.match(/\d+/);
+              if (match) {
+                const numIdx = parseInt(match[0], 10);
+                if (numIdx >= 0 && numIdx < chunk.length) {
+                  res.id = chunk[numIdx].id;
+                }
+              }
+            }
           });
 
-          const currentUsedTokens = tokenWindowTokens.reduce((sum, val) => sum + val, 0);
-          if (currentUsedTokens + batchTextLength > settings.tpm) {
-            const waitTime = 30000;
-            addLog('warning', t.tpmWait(waitTime / 1000));
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-          }
-
-          requestTimestamps.push(Date.now());
-          tokenWindowTimestamps.push(Date.now());
-          tokenWindowTokens.push(batchTextLength);
-        }
-
-        // Prepare request items with simplified sequential IDs to prevent local LLM ID truncation/reset bugs
-        const requestItems = chunk.map((c, idx) => ({
-          id: String(idx),
-          source: c.source,
-          npc: c.npc,
-          sex: c.sex,
-        }));
-
-        const relevantGlossary = GlossaryService.filterRelevantEntries(
-          chunk.map((c) => c.source),
-          glossary
-        );
-
-        const batchNpcNames = new Set(
-          chunk.map((c) => {
-            if (!c.npc) return '';
-            let cleanName = c.npc.trim();
-            if (cleanName.startsWith('[')) {
-              const endIdx = cleanName.indexOf(']');
-              if (endIdx !== -1) {
-                cleanName = cleanName.substring(1, endIdx).trim();
+          // Update UI State
+          setItems((prev) =>
+            prev.map((item) => {
+              const res = results.find((r) => r.id === item.id);
+              if (res && res.translated) {
+                return {
+                  ...item,
+                  dest: res.translated,
+                  aiTranslation: res.translated,
+                  status: 'ai_generated',
+                };
               }
-            }
-            return cleanName;
-          }).filter(Boolean)
-        );
-        const batchNpcProfiles = profiles.filter((p) => batchNpcNames.has(p.name));
-        let npcProfilesText = batchNpcProfiles.map(
-          p => t.logNpcProfileDetail(p.name, p.sex || 'Unknown', p.firstPerson || (settings.targetLanguage === 'ja' ? '私' : 'I'), p.secondPerson || (settings.targetLanguage === 'ja' ? 'あなた' : 'you'), p.toneStyle || 'N/A')
-        ).join('\n');
+              return item;
+            })
+          );
 
-        let gameWorldPrompt = '';
-        if (settings.gameType === 'tes') {
-          gameWorldPrompt = `[Game World Setting]: High-Fantasy RPG (medieval theme like The Elder Scrolls/Skyrim). Translate all dialogues using appropriate fantasy phrasing, royal/feudal honorifics, and period-accurate language styles.\n`;
-        } else if (settings.gameType === 'fallout') {
-          gameWorldPrompt = `[Game World Setting]: Post-Apocalyptic Retro-Futuristic Wasteland (gritty survival theme like Fallout). Translate dialogues in a raw, casual, slang-rich, or hardened survivors' style.\n`;
-        } else if (settings.gameType === 'starfield') {
-          gameWorldPrompt = `[Game World Setting]: Space Exploration Sci-Fi (spaceflight sci-fi theme like Starfield). Translate dialogues using futuristic, technical, pilot, or miner terminology in a modern tone.\n`;
+          addLog('success', t.batchSuccess(currentBatchNumber, results.length));
         }
-
-        const combinedPromptText = gameWorldPrompt + npcProfilesText;
-
-        // Request Translation with dynamic automatic retry for temporary API errors
-        let results;
-        let retryCount = 0;
-        const maxRetries = 3;
-        const retryDelay = Math.max(7000, Math.ceil(75000 / settings.rpm)); // Dynamic delay based on RPM
-
-        while (true) {
-          try {
-            results = await provider.translateBatch(
-              requestItems,
-              relevantGlossary,
-              combinedPromptText || undefined,
-              (msg) => addLog('ai', msg)
-            );
-            break; // Success! Exit retry loop
-          } catch (err) {
-            const errorMsg = (err as Error).message;
-            // Catch typical transient / recoverable errors
-            const isRetryable =
-              errorMsg.includes('503') ||
-              errorMsg.includes('500') ||
-              errorMsg.includes('UNAVAILABLE') ||
-              errorMsg.includes('INTERNAL') ||
-              errorMsg.includes('timeout') ||
-              errorMsg.includes('rate limit') ||
-              errorMsg.includes('429') ||
-              errorMsg.includes('Failed to parse') ||
-              errorMsg.includes('JSON');
-
-            if (isRetryable && retryCount < maxRetries) {
-              retryCount++;
-              addLog('warning', t.logApiErrorRetry((retryDelay / 1000).toFixed(1), retryCount, maxRetries, errorMsg));
-              await new Promise(resolve => setTimeout(resolve, retryDelay));
-            } else {
-              throw err; // Re-throw fatal or max-retried errors
-            }
-          }
-        }
-
-        // Safe ID Restoration: Restore simplified sequential IDs back to their original unique IDs.
-        // This completely prevents mapping mismatches without causing line-shifting data corruption.
-        results.forEach((res) => {
-          const idx = parseInt(res.id, 10);
-          if (!isNaN(idx) && idx >= 0 && idx < chunk.length) {
-            res.id = chunk[idx].id;
-          } else {
-            // Fallback for LLMs returning e.g. "str_0" or similar
-            const match = res.id.match(/\d+/);
-            if (match) {
-              const numIdx = parseInt(match[0], 10);
-              if (numIdx >= 0 && numIdx < chunk.length) {
-                res.id = chunk[numIdx].id;
-              }
-            }
-          }
-        });
-
-        // Update UI State
-        setItems((prev) =>
-          prev.map((item) => {
-            const res = results.find((r) => r.id === item.id);
-            if (res && res.translated) {
-              return {
-                ...item,
-                dest: res.translated,
-                aiTranslation: res.translated,
-                status: 'ai_generated',
-              };
-            }
-            return item;
-          })
-        );
-
-        addLog('success', t.batchSuccess(index + 1, results.length));
       }
 
       addLog('success', t.allCompleted);

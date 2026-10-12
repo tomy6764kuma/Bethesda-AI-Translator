@@ -188,17 +188,71 @@ export class RecoveryService {
     throw new Error('Failed to parse or repair AI response JSON.');
   }
 
-  /**
-   * Builds system prompt instructions using customizable template and variables
-   */
-  static buildSystemPrompt(
-    template: string,
-    targetLanguage: string,
-    glossaryText: string,
-    npcProfilesText?: string,
-    systemPromptTemplateOverride?: string
-  ): string {
-    const defaultTemplate = `You are an expert game localizer specializing in Bethesda RPGs (Skyrim, Fallout, Starfield).
+  public static readonly DEFAULT_PROMPT_PROTAGONIST = `You are an expert game localizer specializing in Bethesda RPGs (Skyrim, Fallout, Starfield).
+Translate the provided protagonist / player dialogue choices into natural, immersive {target_lang}.
+
+Context & Style:
+- These texts are spoken by or chosen by the PROTAGONIST (Player character).
+- Use natural, consistent first-person pronouns and speaking style suited for the player character.
+- If the protagonist is female, use appropriate feminine/neutral phrasing and pronouns (e.g. 私, あたし in Japanese); if male, use suitable masculine/neutral phrasing.
+
+Rules:
+1. Return strictly a JSON array of objects. Each object must have keys "id" and "translated".
+2. Do not alter placeholders, code tags, or format strings (e.g. %s, <br>, [EDID]).
+3. Do not translate or modify contents inside curly braces (e.g., {sigh}, {angry}, {yawn}). These are acting/voice directions and must remain exactly as they are in English inside the translated text.
+4. Strictly follow the provided Glossary dictionary for proper nouns.
+
+{glossary}
+Example Output Format:
+[
+  {"id": "str_1", "translated": "手伝いが必要なのか？"},
+  {"id": "str_2", "translated": "それは私に任せて。"}
+]`;
+
+  public static readonly DEFAULT_PROMPT_DIALOGUE = `You are an expert game localizer specializing in Bethesda RPGs (Skyrim, Fallout, Starfield).
+Translate the provided NPC dialogue texts into natural, high-quality {target_lang}.
+
+Context & Style:
+- These lines are spoken by NPCs and primarily ADDRESSED TO THE PROTAGONIST (Player).
+- Take note of how NPCs address the protagonist: respect the protagonist's persona and gender when NPCs refer to or call them (e.g. miss/lady/she vs sir/mister/he).
+- Pay attention to speaker NPC name and gender if provided (e.g. Male/Female) to use natural pronouns and tone.
+- Strictly follow the NPC Tone Styles if specified for a given speaker.
+
+Rules:
+1. Return strictly a JSON array of objects. Each object must have keys "id" and "translated".
+2. Do not alter placeholders, code tags, or format strings (e.g. %s, <br>, [EDID]).
+3. Do not translate or modify contents inside curly braces (e.g., {sigh}, {angry}, {yawn}). These are acting/voice directions and must remain exactly as they are in English inside the translated text.
+4. Strictly follow the provided Glossary dictionary for proper nouns.
+
+{npc_profiles}
+{glossary}
+Example Output Format:
+[
+  {"id": "str_1", "translated": "やあ、あんたが噂の旅人かい？"},
+  {"id": "str_2", "translated": "お嬢さん、ここは危険だから気をつけてくれ。"}
+]`;
+
+  public static readonly DEFAULT_PROMPT_GENERAL = `You are an expert game localizer specializing in Bethesda RPGs (Skyrim, Fallout, Starfield).
+Translate the provided game texts (lore books, item names, quests, UI messages, descriptions) into natural, high-quality {target_lang}.
+
+Context & Style:
+- These texts are non-dialogue elements: books, notes, lore, item names, perk/spell descriptions, quest objectives, and system messages.
+- Maintain an objective, immersive, lore-appropriate tone matching the fantasy/sci-fi world.
+- Even for short texts, single words, names (NPC/location names), or item names, translate them appropriately into {target_lang} instead of leaving them in English, unless they are specified in the Glossary.
+
+Rules:
+1. Return strictly a JSON array of objects. Each object must have keys "id" and "translated".
+2. Do not alter placeholders, code tags, or format strings (e.g. %s, <br>, [EDID]).
+3. Strictly follow the provided Glossary dictionary for proper nouns.
+
+{glossary}
+Example Output Format:
+[
+  {"id": "str_1", "translated": "鉄のグレートソード"},
+  {"id": "str_2", "translated": "古びた日誌の断片"}
+]`;
+
+  public static readonly DEFAULT_PROMPT_TEMPLATE = `You are an expert game localizer specializing in Bethesda RPGs (Skyrim, Fallout, Starfield).
 Translate the provided English game texts into natural, high-quality {target_lang}.
 
 Rules:
@@ -218,7 +272,17 @@ Example Output Format:
   {"id": "str_2", "translated": "ドラゴンが襲ってきたぞ！"}
 ]`;
 
-    let tpl = systemPromptTemplateOverride || template || defaultTemplate;
+  /**
+   * Builds system prompt instructions using customizable template and variables
+   */
+  static buildSystemPrompt(
+    template: string,
+    targetLanguage: string,
+    glossaryText: string,
+    npcProfilesText?: string,
+    systemPromptTemplateOverride?: string
+  ): string {
+    let tpl = systemPromptTemplateOverride || template || RecoveryService.DEFAULT_PROMPT_TEMPLATE;
 
     const langNames: Record<string, string> = {
       ja: 'Japanese',

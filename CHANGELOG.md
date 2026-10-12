@@ -6,6 +6,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 形式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に準拠しています。
 
+## [1.0.8] - 2026-10-12
+
+### Added (新規追加)
+- **3-Way Prompt Specialization (Protagonist, Dialogue, General)**: Split the custom system prompt into three dedicated categories to eliminate misgendering and tone confusion:
+  1. **Protagonist's Lines (選択肢・主人公セリフ)**: Optimized for player choices and protagonist voice. Define first-person pronouns and style suited for your character's gender/personality (e.g., female protagonist).
+  2. **Lines Addressed to Protagonist (NPC対話)**: Optimized for NPC dialogues directed at the player. Specify how NPCs should address the player (e.g., "lady/miss" vs "sir") alongside individual NPC tone profiles.
+  3. **Everything Else (書籍・アイテム・システム)**: Neutral, immersive rules for non-dialogue records (books, item names, perk descriptions, and UI messages).
+  *During translation, texts are automatically categorized and sent to the AI with only their respective prompt applied, preventing conflicting instructions.*
+- **プロンプト3分割機能の導入（主人公 / 対話 / 一般）**: カスタムプロンプトを以下の3つの役割に分割し、プレイヤーやNPCの性別誤認（Misgendering）やプロンプト混線を防止：
+  1. **主人公のセリフ (プレイヤー)**: プレイヤーの選択肢や発言用。主人公の性別・一人称・口調を指定可能。
+  2. **主人公へのセリフ (NPC対話)**: NPCが主人公に語りかけるダイアログ用。主人公への二人称や呼びかけ（「お嬢さん」「旦那」等）をNPC口調設定と連動して指定可能。
+  3. **その他 (書籍・アイテム・システム)**: 本、アイテム名、Perk説明、UI文などの非対話レコード用の中立的なプロンプト。
+  *翻訳実行時に対象テキストが自動判別され、該当するカテゴリのプロンプトのみが個別に適用されてAIへ送信されます。*
+
+### Improved (改善)
+- **Wildcard HTTP Scope for Remote / LAN LLMs**: Updated Tauri v2 HTTP plugin capabilities to allow wildcard URL scopes (`http://**` and `https://**`). Users running dedicated local LLM servers (Ollama, LM Studio, llama.cpp) on another PC within their local network (e.g., `http://192.168.x.x:11434` or custom hostnames) can now connect directly without hitting "url not allowed on the configured scope" errors or requiring `netsh` port forwarding.
+- **LAN内リモートLLMサーバー（Ollama等）への直接接続対応**: Tauri v2のHTTPセキュリティスコープを拡張し、ローカルネットワーク内の別PC（`http://192.168.x.x:11434` 等）や専用サーバーで動作する Ollama / LM Studio / llama.cpp へ、ポートプロキシ（netsh等）を設定することなく直接接続できるよう改善しました。
+
 ## [1.0.7] - 2026-08-23
 
 ### Added (新規追加)
@@ -19,7 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - 🇧🇷 **ポルトガル語 (ブラジル) (`pt-BR`)**: 話者の性別に合わせた形容詞・挨拶表現に対応。
   - 🇵🇱 **ポーランド語 (`pl`)**: 話者・対象の性別による厳密な動詞・形容詞の活用に対応。
   - 🇹🇭 **タイ語 (`th`)**: 性別に応じた一人称や丁寧な文末詞（ครับ/ค่ะ）に対応。
-    
+
 ## [1.0.6] - 2026-07-10
 
 ### Removed (削除)
