@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 形式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に準拠しています。
 
+## [1.0.9] - 2026-11-08
+
+### Fixed (バグ修正)
+- **Ollama & Local LLM Connection Scope Fix ("url not allowed on the configured scope")**: Fixed an issue where connecting to local LLMs with explicit port numbers (e.g., `http://localhost:11434`, `http://127.0.0.1:11434`, or LAN IPs) failed with a Tauri security error: `"url not allowed on the configured scope"`. Updated Tauri v2 capabilities to explicitly permit port wildcards (`http://*:*`, `https://*:*`), fully restoring connections to Ollama, LM Studio, llama.cpp, and LAN-hosted models.
+- **OllamaおよびローカルLLM接続時のスコープエラー修正 ("url not allowed on the configured scope")**: ポート番号を含むローカルLLM（`http://localhost:11434`、`http://127.0.0.1:11434`、LAN内IPなど）へ接続した際に、Tauri内部のセキュリティ機構により `"url not allowed on the configured scope"` エラーが発生し、モデル取得や翻訳が行えなくなっていた不具合を修正しました。Tauri v2のスコープ定義にポート番号のワイルドカード（`http://*:*`, `https://*:*`）を明示的に許可し、Ollama、LM Studio、llama.cpp 等への正常な接続を復旧しました。
+
 ## [1.0.8] - 2026-10-12
 
 ### Added (新規追加)
